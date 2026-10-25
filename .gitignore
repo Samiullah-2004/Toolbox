@@ -1,0 +1,23 @@
+# dependencies and build output (each app also has its own .gitignore)
+node_modules/
+.next/
+out/
+dist/
+target/
+__pycache__/
+*.pyc
+.venv/
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# local editor and assistant settings
+.claude/settings.local.json
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
