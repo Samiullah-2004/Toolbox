@@ -1,10 +1,11 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { AnimatePresence, LayoutGroup, m } from "motion/react"
 import { CloudUpload, Lock, Search, X } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
-import { Mascot } from "@/components/brand/mascot"
+import { LiveMascot } from "@/components/brand/live-mascot"
 import { ToolCard } from "@/components/tools/tool-card"
 import { ToolIcon } from "@/components/tools/tool-icon"
 import { categoryStyles } from "@/lib/category-styles"
@@ -43,7 +44,7 @@ export function ToolExplorer() {
       {/* sits right under the 69px sticky header */}
       <div className="sticky top-[69px] z-30 border-b bg-background/90 backdrop-blur-lg">
         <div className="container-page flex flex-col gap-3 py-3 md:flex-row md:items-center">
-          <div className="relative md:w-72 lg:w-80">
+          <div className="relative shrink-0 md:w-64">
             <Search
               className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"
@@ -71,7 +72,7 @@ export function ToolExplorer() {
           <div
             role="group"
             aria-label="Filter by category"
-            className="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar sm:-mx-6 sm:px-6 md:mx-0 md:flex-1 md:px-0"
+            className="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar scroll-fade-x sm:-mx-6 sm:px-6 md:mx-0 md:flex-1 md:px-0 lg:flex-wrap lg:overflow-visible lg:[mask-image:none]"
           >
             {[{ id: "all" as const, name: "All tools" }, ...categories].map((c) => {
               const count = c.id === "all" ? tools.length : tools.filter((t) => t.category === c.id).length
@@ -83,12 +84,19 @@ export function ToolExplorer() {
                   aria-pressed={active}
                   onClick={() => setCategory(c.id)}
                   className={cn(
-                    "flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium whitespace-nowrap transition",
+                    "relative isolate flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium whitespace-nowrap transition-colors duration-200 active:scale-95",
                     active
-                      ? "border-foreground bg-foreground text-background"
+                      ? "border-foreground text-background"
                       : "bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
                   )}
                 >
+                  {active && (
+                    <m.span
+                      layoutId="chip-active"
+                      className="absolute -inset-px -z-10 rounded-full bg-foreground"
+                      transition={{ type: "spring", stiffness: 480, damping: 36 }}
+                    />
+                  )}
                   {c.id !== "all" && (
                     <span className={cn("size-2 rounded-full", categoryStyles[c.id].bar)} aria-hidden="true" />
                   )}
@@ -103,9 +111,27 @@ export function ToolExplorer() {
 
       <div className="container-page py-8 sm:py-10">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            Showing <span className="font-semibold text-foreground">{results.length}</span>{" "}
+          <p className="text-sm text-muted-foreground">
+            <span className="sr-only" aria-live="polite">
+              Showing {results.length} {results.length === 1 ? "tool" : "tools"}
+            </span>
+            <span aria-hidden="true">
+            Showing{" "}
+            <span className="relative inline-flex overflow-hidden align-bottom font-semibold text-foreground tabular-nums">
+              <AnimatePresence mode="popLayout" initial={false}>
+                <m.span
+                  key={results.length}
+                  initial={{ y: "100%", opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: "-100%", opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {results.length}
+                </m.span>
+              </AnimatePresence>
+            </span>{" "}
             {results.length === 1 ? "tool" : "tools"}
+            </span>
           </p>
           <div role="radiogroup" aria-label="Where the tool runs" className="flex gap-1 rounded-xl bg-muted p-1">
             {whereOptions.map(({ value, label, icon: Icon }) => (
@@ -116,10 +142,17 @@ export function ToolExplorer() {
                 aria-checked={where === value}
                 onClick={() => setWhere(value)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition",
-                  where === value && "bg-background text-foreground shadow-sm"
+                  "relative isolate flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+                  where === value && "text-foreground"
                 )}
               >
+                {where === value && (
+                  <m.span
+                    layoutId="where-thumb"
+                    className="absolute inset-0 -z-10 rounded-lg bg-background shadow-sm"
+                    transition={{ type: "spring", stiffness: 480, damping: 36 }}
+                  />
+                )}
                 {Icon && <Icon className="size-3.5" aria-hidden="true" />}
                 {label}
               </button>
@@ -128,8 +161,12 @@ export function ToolExplorer() {
         </div>
 
         {results.length === 0 ? (
-          <div className="flex flex-col items-center rounded-3xl border border-dashed px-6 py-14 text-center">
-            <Mascot mood="oops" className="w-36" />
+          <m.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center rounded-3xl border border-dashed px-6 py-14 text-center"
+          >
+            <LiveMascot mood="oops" className="w-36" />
             <p className="mt-4 font-heading text-xl font-bold">
               {query ? <>No tool matches &ldquo;{query}&rdquo;</> : "No tools match these filters"}
             </p>
@@ -137,7 +174,7 @@ export function ToolExplorer() {
             <Button variant="outline" className="mt-5" onClick={reset}>
               Clear search and filters
             </Button>
-          </div>
+          </m.div>
         ) : grouped ? (
           <div className="space-y-14">
             {categories.map((c) => {
@@ -175,14 +212,27 @@ export function ToolExplorer() {
   )
 }
 
+/** Cards fade out when filtered away, and the rest glide to their new places */
 function ToolGrid({ tools }: { tools: ReturnType<typeof searchTools> }) {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {tools.map((tool) => (
-        <li key={tool.slug}>
-          <ToolCard tool={tool} />
-        </li>
-      ))}
-    </ul>
+    <LayoutGroup>
+      {/* popLayout positions leaving cards absolutely, so the list must be `relative` */}
+      <ul className="relative grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <AnimatePresence mode="popLayout" initial={false}>
+          {tools.map((tool) => (
+            <m.li
+              key={tool.slug}
+              layout
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.94 }}
+              transition={{ type: "spring", stiffness: 380, damping: 32 }}
+            >
+              <ToolCard tool={tool} />
+            </m.li>
+          ))}
+        </AnimatePresence>
+      </ul>
+    </LayoutGroup>
   )
 }

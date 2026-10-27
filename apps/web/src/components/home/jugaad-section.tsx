@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { ArrowRight, Workflow } from "lucide-react"
+import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal"
 import { ToolIcon } from "@/components/tools/tool-icon"
 import { getTool } from "@/lib/tools"
 
@@ -13,16 +14,10 @@ export function JugaadSection() {
   return (
     <section id="jugaad" className="py-16 sm:py-24">
       <div className="container-page">
+        <Reveal>
         <div className="relative isolate overflow-hidden rounded-[2rem] bg-[oklch(0.25_0.04_230)] px-5 py-12 text-white sm:px-10 sm:py-14 lg:px-14">
           <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1.5 truck-stripe" />
-          <div
-            aria-hidden="true"
-            className="absolute -right-24 -bottom-32 -z-10 size-96 rounded-full bg-[oklch(0.67_0.2_44/0.35)] blur-3xl"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute -top-24 -left-24 -z-10 size-80 rounded-full bg-[oklch(0.6_0.1_200/0.3)] blur-3xl"
-          />
+          <div aria-hidden="true" className="absolute inset-0 -z-10 opacity-[0.07] dot-grid [--foreground:white]" />
 
           <div className="grid gap-10 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:items-center lg:gap-12">
             <div>
@@ -37,9 +32,10 @@ export function JugaadSection() {
               </p>
             </div>
 
-            <ul className="space-y-3">
+            <Stagger as="ul" gap={120} className="space-y-3">
               {chains.map((chain) => (
-                <li key={chain.title} className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm sm:p-5">
+                <StaggerItem as="li" key={chain.title}>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm transition-colors duration-300 hover:border-white/25 hover:bg-white/[0.1] sm:p-5">
                   <p className="text-sm font-semibold text-white/90">{chain.title}</p>
                   <ol className="mt-3 flex flex-wrap items-center gap-1.5">
                     {chain.steps.map((slug, i) => {
@@ -63,11 +59,13 @@ export function JugaadSection() {
                       )
                     })}
                   </ol>
-                </li>
+                  </div>
+                </StaggerItem>
               ))}
-            </ul>
+            </Stagger>
           </div>
         </div>
+        </Reveal>
       </div>
     </section>
   )

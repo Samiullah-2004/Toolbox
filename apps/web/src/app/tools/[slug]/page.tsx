@@ -12,12 +12,16 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Mascot } from "@/components/brand/mascot"
+import { LiveMascot } from "@/components/brand/live-mascot"
+import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal"
+import { LiveSteps } from "@/components/tools/live-steps"
+import { ToolSessionProvider } from "@/components/tools/tool-session"
 import { PrivacyBadge } from "@/components/tools/privacy-badge"
 import { ToolCard } from "@/components/tools/tool-card"
 import { ToolIcon } from "@/components/tools/tool-icon"
 import { ToolWorkspace } from "@/components/tools/tool-workspace"
 import { categoryStyles } from "@/lib/category-styles"
+import { riseDelay } from "@/lib/motion"
 import {
   fileNoun,
   getCategory,
@@ -72,7 +76,7 @@ async function ToolPageContent({ params }: { params: PageProps<"/tools/[slug]">[
           className="absolute inset-0 -z-10 dot-grid [mask-image:linear-gradient(to_bottom,black,transparent)]"
         />
         <div className="container-page py-6 sm:py-10">
-          <Breadcrumb>
+          <Breadcrumb className="rise">
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
@@ -92,8 +96,8 @@ async function ToolPageContent({ params }: { params: PageProps<"/tools/[slug]">[
             </BreadcrumbList>
           </Breadcrumb>
 
-          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-            <ToolIcon icon={tool.icon} category={tool.category} size="lg" className="shadow-sm" />
+          <div className="rise mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6" style={riseDelay(80)}>
+            <ToolIcon icon={tool.icon} category={tool.category} size="lg" className="shadow-sm transition-transform duration-300 hover:-rotate-6 hover:scale-110" />
             <div className="min-w-0 space-y-2">
               <p className={cn("text-sm font-semibold", styles.text)}>
                 {category.name} &middot; {category.localName}
@@ -103,11 +107,11 @@ async function ToolPageContent({ params }: { params: PageProps<"/tools/[slug]">[
             </div>
           </div>
 
-          <ul className="mt-5 flex flex-wrap gap-2">
+          <ul className="rise mt-5 flex flex-wrap gap-2" style={riseDelay(160)}>
             <li>
               <PrivacyBadge runsOn={tool.runsOn} />
             </li>
-            {["Free", "No watermark", ...(tool.runsOn === "browser" ? ["No sign-up"] : [])].map((label) => (
+            {["Free", "No sign-up", "No watermark"].map((label) => (
               <li
                 key={label}
                 className="inline-flex items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-xs font-medium"
@@ -120,10 +124,11 @@ async function ToolPageContent({ params }: { params: PageProps<"/tools/[slug]">[
         </div>
       </section>
 
+      <ToolSessionProvider>
       <div className="container-page grid gap-6 py-6 sm:py-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="min-w-0 space-y-4">
+        <div className="rise min-w-0 space-y-4" style={riseDelay(220)}>
           <div className="flex items-center gap-3 rounded-2xl border border-warning/30 bg-warning/10 p-3 pr-4 sm:gap-4">
-            <Mascot mood="working" className="w-16 shrink-0 sm:w-20" label="Mistri at work" />
+            <LiveMascot mood="working" className="w-16 shrink-0 sm:w-20" label="Mistri at work" />
             <div>
               <p className="font-semibold">Mistri is still building this tool</p>
               <p className="text-sm text-muted-foreground">
@@ -135,8 +140,8 @@ async function ToolPageContent({ params }: { params: PageProps<"/tools/[slug]">[
           <ToolWorkspace slug={tool.slug} />
         </div>
 
-        <aside className="space-y-4">
-          <HowToCard tool={tool} />
+        <aside className="rise space-y-4" style={riseDelay(300)}>
+          <LiveSteps title={`How to use ${tool.name}`} steps={howToSteps(tool)} input={tool.input} />
           <PrivacyCard tool={tool} />
           <div className="rounded-3xl border bg-card p-5">
             <p className="flex items-center gap-2 text-sm font-semibold">
@@ -147,17 +152,20 @@ async function ToolPageContent({ params }: { params: PageProps<"/tools/[slug]">[
           </div>
         </aside>
       </div>
+      </ToolSessionProvider>
 
       <section className="border-t bg-muted/40">
         <div className="container-page py-12 sm:py-16">
-          <h2 className="text-2xl font-bold sm:text-3xl">You might also need</h2>
-          <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Reveal>
+            <h2 className="text-2xl font-bold sm:text-3xl">You might also need</h2>
+          </Reveal>
+          <Stagger as="ul" className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {relatedTools(tool).map((related) => (
-              <li key={related.slug}>
+              <StaggerItem as="li" key={related.slug}>
                 <ToolCard tool={related} />
-              </li>
+              </StaggerItem>
             ))}
-          </ul>
+          </Stagger>
         </div>
       </section>
     </>
@@ -200,7 +208,7 @@ function ToolPageSkeleton() {
   )
 }
 
-function HowToCard({ tool }: { tool: Tool }) {
+function howToSteps(tool: Tool) {
   const first =
     tool.input === "text"
       ? "Type or paste your text into the box."
@@ -209,23 +217,7 @@ function HowToCard({ tool }: { tool: Tool }) {
         : `Choose your ${fileNoun(tool)}, or drop ${tool.multiple ? "them" : "it"} on the page.`
   const last =
     tool.input === "record" ? "Stop when you're done and download the recording." : `Press "${tool.actionLabel}" and download the result.`
-  const steps = [first, tool.step, last]
-
-  return (
-    <div className="rounded-3xl border bg-card p-5">
-      <h2 className="font-sans text-base font-semibold tracking-normal">How to use {tool.name}</h2>
-      <ol className="mt-4 space-y-4">
-        {steps.map((step, i) => (
-          <li key={i} className="flex gap-3">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-              {i + 1}
-            </span>
-            <span className="pt-0.5 text-sm leading-relaxed text-muted-foreground">{step}</span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  )
+  return [first, tool.step, last]
 }
 
 function PrivacyCard({ tool }: { tool: Tool }) {

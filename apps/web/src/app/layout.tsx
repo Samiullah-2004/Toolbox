@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next"
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google"
 import { Toaster } from "@/components/ui/sonner"
+import { BackToTop } from "@/components/layout/back-to-top"
+import { MotionProvider } from "@/components/motion/motion-provider"
 import { SiteFooter } from "@/components/layout/site-footer"
 import { SiteHeader } from "@/components/layout/site-header"
 import { ThemeScript } from "@/components/layout/theme-script"
@@ -60,9 +62,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Skip to content
         </a>
-        <SiteHeader />
-        {children}
-        <SiteFooter />
+        <MotionProvider>
+          <SiteHeader />
+          {children}
+          <SiteFooter />
+          <BackToTop />
+        </MotionProvider>
         <Toaster position="bottom-center" />
       </body>
     </html>

@@ -1,17 +1,21 @@
 "use client"
 
-import { useEffectEvent, useLayoutEffect, useRef, useState } from "react"
+import { useEffectEvent, useLayoutEffect, useRef } from "react"
+import { AnimatePresence, m } from "motion/react"
 import { ArrowRight, CloudUpload, FolderOpen, Lock, Mic, Monitor, Plus, X } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { DashedOutline } from "@/components/motion/dashed-outline"
+import { useToolSession } from "@/components/tools/tool-session"
 import { DropOverlay } from "@/components/upload/drop-overlay"
 import { FileThumb } from "@/components/upload/file-thumb"
 import { useWindowFileDrop } from "@/hooks/use-window-file-drop"
 import { categoryStyles } from "@/lib/category-styles"
 import { receiveHandoffs } from "@/lib/file-handoff"
 import { formatBytes } from "@/lib/format"
+import { swapPreset } from "@/lib/motion"
 import {
   acceptAttribute,
   acceptLabel,
@@ -23,11 +27,18 @@ import {
   SERVER_PAGE_LIMIT,
 } from "@/lib/tools"
 
+// Stable keys for File objects, so list animations can track each file
+const fileIds = new WeakMap<File, number>()
+let nextFileId = 0
+const fileKey = (file: File) => {
+  if (!fileIds.has(file)) fileIds.set(file, nextFileId++)
+  return fileIds.get(file)!
+}
+
 export function ToolWorkspace({ slug }: { slug: string }) {
   const tool = getTool(slug)!
   const inputRef = useRef<HTMLInputElement>(null)
-  const [files, setFiles] = useState<File[]>([])
-  const [text, setText] = useState("")
+  const { files, setFiles, text, setText } = useToolSession()
   const maxMB = maxFileSizeMB(tool)
   const styles = categoryStyles[tool.category]
 
@@ -84,22 +95,26 @@ export function ToolWorkspace({ slug }: { slug: string }) {
       />
 
       <div className="p-4 sm:p-6">
+        <AnimatePresence mode="wait" initial={false}>
         {tool.input === "files" && files.length === 0 && (
-          <button
+          <m.button
+            key="dropzone"
+            {...swapPreset}
             type="button"
             onClick={chooseFiles}
             className={cn(
-              "group flex min-h-72 w-full flex-col items-center justify-center gap-5 rounded-2xl border-2 border-dashed px-6 py-10 text-center outline-none transition-colors",
-              "hover:border-primary/60 hover:bg-primary/[0.03] focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-ring/40"
+              "group relative flex min-h-72 w-full flex-col items-center justify-center gap-5 rounded-2xl px-6 py-10 text-center outline-none transition-colors",
+              "hover:bg-primary/[0.03] focus-visible:ring-3 focus-visible:ring-ring/40"
             )}
           >
+            <DashedOutline />
             <span
               className={cn(
-                "flex size-16 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:-translate-y-1",
+                "flex size-16 animate-breathe items-center justify-center rounded-2xl transition-transform duration-300 group-hover:[animation-play-state:paused]",
                 styles.tile
               )}
             >
-              <CloudUpload className="size-8" aria-hidden="true" />
+              <CloudUpload className="size-8 transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-110" aria-hidden="true" />
             </span>
             <span className="space-y-1.5">
               <span className="block font-heading text-xl font-semibold sm:text-2xl">
@@ -111,15 +126,15 @@ export function ToolWorkspace({ slug }: { slug: string }) {
                 {hasPageLimit(tool) && ` · max ${SERVER_PAGE_LIMIT} pages`}
               </span>
             </span>
-            <span className={buttonVariants({ size: "lg" })}>
-              <FolderOpen />
+            <span className={buttonVariants({ size: "lg", className: "group-hover:shadow-md" })}>
+              <FolderOpen className="transition-transform group-hover:-rotate-6" />
               Choose {tool.multiple ? "files" : "file"}
             </span>
-          </button>
+          </m.button>
         )}
 
         {tool.input === "files" && files.length > 0 && (
-          <div className="space-y-3">
+          <m.div key="files" {...swapPreset} className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-medium">
                 {files.length} {files.length === 1 ? "file" : "files"} selected
@@ -131,10 +146,15 @@ export function ToolWorkspace({ slug }: { slug: string }) {
               </Button>
             </div>
             <ul className="space-y-2">
+              <AnimatePresence initial={false}>
               {files.map((file, i) => (
-                <li
-                  key={`${file.name}-${file.lastModified}-${i}`}
-                  className="flex items-center gap-3 rounded-2xl border bg-background p-2.5 pr-1.5 duration-200 animate-in fade-in-0 slide-in-from-bottom-1"
+                <m.li
+                  key={fileKey(file)}
+                  layout
+                  initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: -40, transition: { duration: 0.18 } }}
+                  className="flex items-center gap-3 rounded-2xl border bg-background p-2.5 pr-1.5 transition-colors hover:border-foreground/20"
                 >
                   {tool.multiple && (
                     <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold tabular-nums">
@@ -147,6 +167,7 @@ export function ToolWorkspace({ slug }: { slug: string }) {
                     <p className="text-xs text-muted-foreground">
                       {formatBytes(file.size)} &middot; {fileTypeLabel(file)}
                     </p>
+                    <SizeBar size={file.size} maxMB={maxMB} />
                   </div>
                   <Button
                     variant="ghost"
@@ -156,11 +177,13 @@ export function ToolWorkspace({ slug }: { slug: string }) {
                   >
                     <X />
                   </Button>
-                </li>
+                </m.li>
               ))}
+              </AnimatePresence>
             </ul>
-          </div>
+          </m.div>
         )}
+        </AnimatePresence>
 
         {tool.input === "files" && (
           <input
@@ -203,9 +226,15 @@ export function ToolWorkspace({ slug }: { slug: string }) {
                 key={title}
                 type="button"
                 onClick={run}
-                className="group flex flex-col items-start gap-4 rounded-2xl border-2 border-dashed p-6 text-left outline-none transition-colors hover:border-primary/60 hover:bg-primary/[0.03] focus-visible:ring-3 focus-visible:ring-ring/40"
+                className="group relative flex flex-col items-start gap-4 rounded-2xl p-6 text-left outline-none transition-all duration-300 hover:-translate-y-1 hover:bg-primary/[0.03] focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98]"
               >
-                <span className={cn("flex size-12 items-center justify-center rounded-xl", styles.tile)}>
+                <DashedOutline />
+                <span
+                  className={cn(
+                    "flex size-12 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6",
+                    styles.tile
+                  )}
+                >
                   <Icon className="size-6" aria-hidden="true" />
                 </span>
                 <span>
@@ -243,13 +272,48 @@ export function ToolWorkspace({ slug }: { slug: string }) {
                 Clear
               </Button>
             )}
-            <Button size="lg" onClick={run} disabled={!ready} className="flex-1 sm:flex-none">
-              {tool.actionLabel}
-              <ArrowRight />
-            </Button>
+            {/* the button gives a small bounce the moment it becomes usable */}
+            <m.div
+              key={ready ? "ready" : "idle"}
+              initial={ready ? { scale: 0.9 } : false}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 500, damping: 14 }}
+              className="flex flex-1 sm:flex-none"
+            >
+              <Button size="lg" onClick={run} disabled={!ready} className="group w-full">
+                {tool.actionLabel}
+                <ArrowRight className="transition-transform group-hover:translate-x-1" />
+              </Button>
+            </m.div>
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/** How much of the tool's size limit a file uses. Amber when it gets close. */
+function SizeBar({ size, maxMB }: { size: number; maxMB: number }) {
+  const ratio = Math.min(size / (maxMB * 1024 * 1024), 1)
+  const percent = Math.max(Math.round(ratio * 100), 1)
+  return (
+    <div className="mt-1.5 flex items-center gap-2" title={`${percent}% of the ${maxMB} MB limit`}>
+      <div
+        role="meter"
+        aria-label="File size compared to the limit"
+        aria-valuemin={0}
+        aria-valuemax={maxMB}
+        aria-valuenow={Number((size / 1024 / 1024).toFixed(2))}
+        className="h-1 w-full max-w-40 overflow-hidden rounded-full bg-muted"
+      >
+        <m.div
+          className={cn("h-full rounded-full", ratio > 0.8 ? "bg-warning" : "bg-success")}
+          initial={{ width: 0 }}
+          animate={{ width: `${percent}%` }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+        />
+      </div>
+      <span className="shrink-0 text-[0.7rem] text-muted-foreground tabular-nums">of {maxMB} MB</span>
     </div>
   )
 }

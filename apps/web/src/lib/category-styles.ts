@@ -3,7 +3,7 @@ import type { CategoryId } from "@/lib/tools"
 // Full class names so Tailwind can see them at build time.
 export const categoryStyles: Record<
   CategoryId,
-  { text: string; tile: string; hoverBorder: string; bar: string; soft: string }
+  { text: string; tile: string; hoverBorder: string; bar: string; soft: string; glow: string }
 > = {
   pdf: {
     text: "text-cat-pdf",
@@ -11,6 +11,7 @@ export const categoryStyles: Record<
     hoverBorder: "hover:border-cat-pdf/50",
     bar: "bg-cat-pdf",
     soft: "bg-cat-pdf/6",
+    glow: "hover:shadow-cat-pdf/20",
   },
   video: {
     text: "text-cat-video",
@@ -18,6 +19,7 @@ export const categoryStyles: Record<
     hoverBorder: "hover:border-cat-video/50",
     bar: "bg-cat-video",
     soft: "bg-cat-video/6",
+    glow: "hover:shadow-cat-video/20",
   },
   audio: {
     text: "text-cat-audio",
@@ -25,6 +27,7 @@ export const categoryStyles: Record<
     hoverBorder: "hover:border-cat-audio/50",
     bar: "bg-cat-audio",
     soft: "bg-cat-audio/6",
+    glow: "hover:shadow-cat-audio/20",
   },
   image: {
     text: "text-cat-image",
@@ -32,6 +35,7 @@ export const categoryStyles: Record<
     hoverBorder: "hover:border-cat-image/50",
     bar: "bg-cat-image",
     soft: "bg-cat-image/6",
+    glow: "hover:shadow-cat-image/20",
   },
   speech: {
     text: "text-cat-speech",
@@ -39,6 +43,7 @@ export const categoryStyles: Record<
     hoverBorder: "hover:border-cat-speech/50",
     bar: "bg-cat-speech",
     soft: "bg-cat-speech/6",
+    glow: "hover:shadow-cat-speech/20",
   },
   utility: {
     text: "text-cat-utility",
@@ -46,5 +51,6 @@ export const categoryStyles: Record<
     hoverBorder: "hover:border-cat-utility/50",
     bar: "bg-cat-utility",
     soft: "bg-cat-utility/6",
+    glow: "hover:shadow-cat-utility/20",
   },
 }

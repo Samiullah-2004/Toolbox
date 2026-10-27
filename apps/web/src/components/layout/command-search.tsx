@@ -36,9 +36,18 @@ export function CommandSearch() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       // key can be missing on autofill and some IME events
-      if (typeof e.key === "string" && e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
+      if (typeof e.key !== "string") return
+      if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setOpen((o) => !o)
+        return
+      }
+      // "/" opens search too, unless the user is typing somewhere
+      const target = e.target as HTMLElement
+      const typing = target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)
+      if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        setOpen(true)
       }
     }
     window.addEventListener("keydown", onKeyDown)
@@ -70,7 +79,8 @@ export function CommandSearch() {
       <Button
         variant="outline"
         onClick={() => setOpen(true)}
-        className="hidden w-52 justify-start font-normal text-muted-foreground md:inline-flex lg:w-60"
+        // full button on tablets and wide screens; an icon on laptops, where the category links need the room
+        className="hidden w-52 justify-start font-normal text-muted-foreground md:inline-flex lg:hidden xl:inline-flex xl:w-56"
       >
         <Search />
         Search tools...
@@ -82,7 +92,7 @@ export function CommandSearch() {
         variant="ghost"
         size="icon"
         onClick={() => setOpen(true)}
-        className="md:hidden"
+        className="md:hidden lg:inline-flex xl:hidden"
         aria-label="Search tools"
       >
         <Search />

@@ -1,4 +1,5 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Reveal } from "@/components/motion/reveal"
 import { SectionHeading } from "@/components/section-heading"
 
 const faqs = [
@@ -12,7 +13,7 @@ const faqs = [
   },
   {
     q: "Do I need an account?",
-    a: "No. Open any tool and start. Signing in with Google or GitHub is optional and will let you see your history and get higher daily limits.",
+    a: "No. There is no sign-up and no login. Open any tool and start.",
   },
   {
     q: "Does it work on my phone?",
@@ -32,22 +33,26 @@ export function FaqSection() {
   return (
     <section id="faq" className="py-16 sm:py-24">
       <div className="container-page grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-16">
-        <SectionHeading
-          align="left"
-          eyebrow="Questions"
-          title="Good to know"
-          description="Short answers to the questions people ask most."
-        />
+        <Reveal>
+          <SectionHeading
+            align="left"
+            eyebrow="Questions"
+            title="Good to know"
+            description="Short answers to the questions people ask most."
+          />
+        </Reveal>
+        <Reveal delay={100}>
         <Accordion type="single" collapsible className="rounded-3xl border bg-card px-5 sm:px-7">
           {faqs.map((faq) => (
             <AccordionItem key={faq.q} value={faq.q}>
-              <AccordionTrigger className="py-5 text-base font-semibold hover:no-underline">{faq.q}</AccordionTrigger>
+              <AccordionTrigger className="py-5 text-base font-semibold transition-colors hover:text-primary hover:no-underline">{faq.q}</AccordionTrigger>
               <AccordionContent className="pb-5 text-base leading-relaxed text-muted-foreground">
                 {faq.a}
               </AccordionContent>
             </AccordionItem>
           ))}
         </Accordion>
+        </Reveal>
       </div>
     </section>
   )

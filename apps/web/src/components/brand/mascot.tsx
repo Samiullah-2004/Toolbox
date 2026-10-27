@@ -12,15 +12,25 @@ export function Mascot({
   mood = "happy",
   className,
   label = "Mistri, the Toolbox mascot",
+  ref: svgRef,
 }: {
   mood?: MascotMood
   className?: string
   label?: string
+  ref?: React.Ref<SVGSVGElement>
 }) {
   const look = mood === "working" ? { x: 3, y: 2 } : mood === "oops" ? { x: 0, y: -2 } : { x: 2, y: 1 }
 
   return (
-    <svg viewBox="0 0 270 232" role="img" aria-label={label} className={cn("h-auto w-full", className)}>
+    <svg
+      ref={svgRef}
+      viewBox="0 0 270 232"
+      role="img"
+      aria-label={label}
+      className={cn("h-auto w-full", className)}
+      // Where the pupils look. useEyeTracking() overrides these to follow the pointer.
+      style={{ "--look-x": `${look.x}px`, "--look-y": `${look.y}px` } as React.CSSProperties}
+    >
       {/* ground shadow */}
       <ellipse cx="122" cy="218" rx="84" ry="9" className="fill-foreground" opacity="0.08" />
 
@@ -57,10 +67,12 @@ export function Mascot({
 
       {/* eyes */}
       {[94, 150].map((cx) => (
-        <g key={cx}>
+        <g key={cx} className="origin-center animate-blink [transform-box:fill-box]">
           <circle cx={cx} cy="134" r="16" fill="#fff" stroke={INK} strokeWidth="3" />
-          <circle cx={cx + look.x} cy={134 + look.y} r={mood === "oops" ? 5 : 7.5} fill={INK} />
-          <circle cx={cx + look.x + 2.5} cy={134 + look.y - 3} r="2.3" fill="#fff" />
+          <g className="[transform:translate(var(--look-x),var(--look-y))] transition-transform duration-150 ease-out">
+            <circle cx={cx} cy="134" r={mood === "oops" ? 5 : 7.5} fill={INK} />
+            <circle cx={cx + 2.5} cy="131" r="2.3" fill="#fff" />
+          </g>
         </g>
       ))}
 

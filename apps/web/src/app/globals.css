@@ -53,6 +53,44 @@
 
   --animate-float: float 6s ease-in-out infinite;
   --animate-wrench: wrench 1.2s ease-in-out infinite;
+  --animate-breathe: breathe 3.2s ease-in-out infinite;
+  --animate-blink: blink 5s ease-in-out infinite;
+  --animate-nudge: nudge 0.5s ease-in-out;
+
+  @keyframes breathe {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      transform: translateY(-4px) scale(1.04);
+    }
+  }
+
+  /* closes the eyes briefly near the end of each cycle */
+  @keyframes blink {
+    0%,
+    92%,
+    100% {
+      transform: scaleY(1);
+    }
+    95% {
+      transform: scaleY(0.1);
+    }
+  }
+
+  @keyframes nudge {
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+    25% {
+      transform: rotate(-10deg);
+    }
+    75% {
+      transform: rotate(8deg);
+    }
+  }
 
   @keyframes float {
     0%,
@@ -213,13 +251,117 @@
   background-size: 22px 22px;
 }
 
+/* ---------- Motion that must work before JavaScript loads ---------- */
+
+/* Rise into place on first paint. Stagger with style={{ "--delay": "120ms" }} */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@utility rise {
+  animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+/* Draws an SVG stroke from start to end (the hero underline, the step connector) */
+@keyframes draw {
+  from {
+    stroke-dashoffset: var(--length, 320);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@utility draw-in {
+  stroke-dasharray: var(--length, 320);
+  animation: draw 0.9s cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+/* Dashes that move along an SVG outline, for drop zones the user is aiming at */
+@keyframes dash-march {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+@utility dash-march {
+  stroke-dasharray: 10 8;
+  animation: dash-march 0.9s linear infinite;
+}
+
+/* Underline that grows from the left on hover */
+@utility link-underline {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0% 1px;
+  transition: background-size 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  &:hover,
+  &:focus-visible,
+  :is(a, button):hover > &,
+  .group:hover &,
+  .group:focus-visible & {
+    background-size: 100% 1px;
+  }
+}
+
+/* Scroll reveals. Content is only hidden after JavaScript adds `motion-ready` to <html>,
+   so without JavaScript (or before it loads) everything is simply visible. */
+.reveal,
+.reveal-item {
+  transition:
+    opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--delay, 0ms);
+}
+.motion-ready .reveal:not([data-visible]),
+.motion-ready [data-stagger]:not([data-visible]) > .reveal-item {
+  opacity: 0;
+  transform: translateY(18px);
+}
+.reveal-line {
+  transform-origin: left;
+  transition: transform 1s cubic-bezier(0.65, 0, 0.35, 1);
+  transition-delay: var(--delay, 300ms);
+}
+.motion-ready .reveal-line:not([data-visible]) {
+  transform: scaleX(0);
+}
+
+/* Theme switch: the new theme grows out of the toggle button as a circle.
+   Scoped to `.theme-switching` so any other view transition keeps the default crossfade. */
+.theme-switching::view-transition-old(root),
+.theme-switching::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+.theme-switching::view-transition-new(root) {
+  animation: theme-reveal 0.55s cubic-bezier(0.65, 0, 0.35, 1);
+}
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 0%));
+  }
+  to {
+    clip-path: circle(var(--vt-r, 150vmax) at var(--vt-x, 50%) var(--vt-y, 0%));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    /* no waiting either: staggered items appear at once instead of sitting invisible */
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+  .theme-switching::view-transition-new(root) {
+    animation: none;
   }
 }

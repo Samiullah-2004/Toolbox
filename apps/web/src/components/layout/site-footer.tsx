@@ -19,8 +19,8 @@ const columns = [
     title: "Toolbox",
     links: [
       { href: "/tools", label: "All tools" },
-      { href: "/#how-it-works", label: "How it works" },
-      { href: "/#jugaad", label: "Jugaad Mode" },
+      { href: "/about", label: "About Toolbox" },
+      { href: "/about#faq", label: "FAQ" },
       { href: "/privacy", label: "Privacy" },
       { href: GITHUB_URL, label: "Source code on GitHub" },
     ],
@@ -48,7 +48,7 @@ export function SiteFooter() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    className="link-underline inline-block text-sm text-muted-foreground transition-[color,translate,background-size] duration-200 hover:translate-x-0.5 hover:text-foreground"
                     {...(link.href.startsWith("http") && { target: "_blank", rel: "noreferrer" })}
                   >
                     {link.label}
@@ -62,8 +62,8 @@ export function SiteFooter() {
       <div className="border-t">
         <div className="container-page flex flex-col gap-2 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>&copy; 2026 Toolbox. A university project by Sami.</p>
-          <p className="flex items-center gap-1.5">
-            Made with <Coffee className="size-3.5" aria-label="chai" /> in Pakistan
+          <p className="group flex items-center gap-1.5">
+            Made with <Coffee className="size-3.5 text-primary group-hover:animate-nudge" aria-label="chai" /> in Pakistan
           </p>
         </div>
       </div>

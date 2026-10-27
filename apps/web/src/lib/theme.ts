@@ -1,6 +1,7 @@
 "use client"
 
 import { useSyncExternalStore } from "react"
+import { prefersReducedMotion } from "@/lib/motion"
 import { THEME_STORAGE_KEY } from "@/lib/theme-script"
 
 export type Theme = "light" | "dark" | "system"
@@ -35,6 +36,30 @@ export function setTheme(theme: Theme) {
   } catch {}
   apply(theme)
   listeners.forEach((l) => l())
+}
+
+/**
+ * Switches theme with a circular reveal that grows from `origin` (the button the user pressed).
+ * Uses the View Transitions API where available; elsewhere, or with reduced motion, it switches instantly.
+ */
+export function switchTheme(theme: Theme, origin?: HTMLElement | null) {
+  const changes = resolve(theme) !== resolve(readTheme())
+  if (!changes || prefersReducedMotion() || !document.startViewTransition || !origin) {
+    setTheme(theme)
+    return
+  }
+  const box = origin.getBoundingClientRect()
+  const x = box.left + box.width / 2
+  const y = box.top + box.height / 2
+  const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
+  const root = document.documentElement
+  root.style.setProperty("--vt-x", `${x}px`)
+  root.style.setProperty("--vt-y", `${y}px`)
+  root.style.setProperty("--vt-r", `${radius}px`)
+  // The circle reveal CSS only applies while this class is set, so other view transitions are unaffected
+  root.classList.add("theme-switching")
+  const transition = document.startViewTransition(() => setTheme(theme))
+  transition.finished.finally(() => root.classList.remove("theme-switching"))
 }
 
 function subscribe(listener: () => void) {

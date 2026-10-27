@@ -65,13 +65,12 @@ export default function PrivacyPage() {
 
         <div className="mt-10 rounded-3xl border bg-muted/50 p-6 text-sm leading-relaxed text-muted-foreground">
           <p>
-            <span className="font-semibold text-foreground">Signing in is optional.</span> If you sign in with
-            Google or GitHub, we store your name, email and a list of your past jobs so you can see your history.
-            You can use every tool without an account.
+            <span className="font-semibold text-foreground">No accounts, no login.</span> Toolbox never asks for
+            your name, email or password, so there is no personal data for us to store.
           </p>
           <p className="mt-3">
             Questions? Read the{" "}
-            <Link href="/#faq" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link href="/about#faq" className="font-medium text-primary underline-offset-4 hover:underline">
               FAQ
             </Link>{" "}
             or browse the{" "}

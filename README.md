@@ -5,7 +5,7 @@ _Har kaam ka tool, ek hi box mein_
 
 Toolbox is a free, privacy-friendly website with 35 tools for fixing everyday files: merge and compress PDFs, convert iPhone videos and photos, turn a lecture into a WhatsApp voice note, read Urdu text from scans, and more. It is built for students and everyday users in Pakistan.
 
-Most tools run inside the browser, so files never leave the user's device. Heavier jobs like OCR run on a small Python server, and uploaded files are deleted after 1 hour.
+Everything is free, with no sign-up or login. Most tools run inside the browser, so files never leave the user's device. Heavier jobs like OCR run on a small Python server, and uploaded files are deleted after 1 hour.
 
 > University semester project by Sami.
 
@@ -19,7 +19,7 @@ Built in 8 weekly steps. Each tool page shows the week it ships in.
 | 2 | PDF tools (Rust + WebAssembly) | Next |
 | 3 | Audio and video tools (ffmpeg.wasm) | |
 | 4 | Image tools, utilities, Jugaad Mode | |
-| 5 | Database, login, limits (Supabase, NextAuth, Upstash) | |
+| 5 | Database, temporary file storage, daily limits (Supabase, Upstash) | |
 | 6 | Python server: OCR, PDF to Word, tables | |
 | 7 | Python server: scanner, redaction, speech to text | |
 | 8 | Deploy and launch | |

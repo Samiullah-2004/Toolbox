@@ -8,6 +8,8 @@ export type InputMode = "files" | "text" | "record"
 export interface Category {
   id: CategoryId
   name: string
+  /** Label for the navbar */
+  shortName: string
   localName: string
   localMeaning: string
   description: string
@@ -40,6 +42,7 @@ export interface Tool {
 export const categories: Category[] = [
   {
     id: "pdf",
+    shortName: "PDF",
     name: "PDF & Documents",
     localName: "Kaagaz",
     localMeaning: "Paper",
@@ -48,6 +51,7 @@ export const categories: Category[] = [
   },
   {
     id: "video",
+    shortName: "Video",
     name: "Video",
     localName: "Filmy",
     localMeaning: "Movie style",
@@ -56,6 +60,7 @@ export const categories: Category[] = [
   },
   {
     id: "audio",
+    shortName: "Audio",
     name: "Audio",
     localName: "Awaaz",
     localMeaning: "Voice",
@@ -64,6 +69,7 @@ export const categories: Category[] = [
   },
   {
     id: "image",
+    shortName: "Image",
     name: "Image",
     localName: "Tasveer",
     localMeaning: "Picture",
@@ -72,6 +78,7 @@ export const categories: Category[] = [
   },
   {
     id: "speech",
+    shortName: "Speech",
     name: "Speech & Subtitles",
     localName: "Bol",
     localMeaning: "Speak",
@@ -80,6 +87,7 @@ export const categories: Category[] = [
   },
   {
     id: "utility",
+    shortName: "Utilities",
     name: "Utilities",
     localName: "Auzaar",
     localMeaning: "Tools",
