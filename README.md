@@ -16,8 +16,8 @@ Built in 8 weekly steps. Each tool page shows the week it ships in.
 | Week | Focus | Status |
 | --- | --- | --- |
 | 1 | Website, design system, tool pages, search, drag and drop | Done |
-| 2 | PDF tools (Rust + WebAssembly) | Next |
-| 3 | Audio and video tools (ffmpeg.wasm) | |
+| 2 | PDF tools: merge, split, reorder and rotate, sign (Rust + WebAssembly) | Done |
+| 3 | Audio and video tools (ffmpeg.wasm) | Next |
 | 4 | Image tools, utilities, Jugaad Mode | |
 | 5 | Database, temporary file storage, daily limits (Supabase, Upstash) | |
 | 6 | Python server: OCR, PDF to Word, tables | |
@@ -27,7 +27,7 @@ Built in 8 weekly steps. Each tool page shows the week it ships in.
 ## Tech stack
 
 - **Frontend:** Next.js 16, TypeScript, Tailwind CSS, shadcn/ui
-- **Browser tools:** Rust/WebAssembly, ffmpeg.wasm, pdf.js
+- **Browser tools:** Rust/WebAssembly (lopdf), pdf.js, pdf-lib, dnd-kit, signature_pad, Web Workers; ffmpeg.wasm next
 - **Backend:** Python, FastAPI, Tesseract, OpenCV, pdfplumber
 - **Data and hosting:** Supabase, Vercel, Render
 
@@ -35,10 +35,25 @@ Built in 8 weekly steps. Each tool page shows the week it ships in.
 
 ```
 apps/
-  web/    Next.js website (Week 1)
+  web/          Next.js website
+packages/
+  pdf-wasm/     Rust PDF engine, compiled to WebAssembly
+docs/           HCI interaction plan
 ```
 
-More apps (the Python API, the Rust PDF module) are added in later weeks.
+The Python API is added in Week 6.
+
+## How the PDF tools work
+
+Merge, Split and Reorder & Rotate run on a small Rust engine (`packages/pdf-wasm`) compiled to
+WebAssembly. It runs in a Web Worker inside the browser, so files are never uploaded and the page
+stays smooth. pdf.js draws the page previews, and pdf-lib stamps signatures for Sign PDF.
+
+```
+Browser tab ──> Web Worker ──> pdf_wasm.wasm (Rust + lopdf)
+   ▲   pdf.js previews             merge / split / reorder / rotate
+   └── download the result, or send it to the next tool (Jugaad Mode)
+```
 
 ## Run it locally
 
@@ -51,3 +66,12 @@ npm run dev
 ```
 
 Then open http://localhost:3000.
+
+The compiled engine (`apps/web/public/wasm/pdf_wasm.wasm`) is committed, so Rust is not needed to
+run the website. To change the Rust code, install [Rust](https://rustup.rs) with the
+`wasm32-unknown-unknown` target, then:
+
+```bash
+cd packages/pdf-wasm && cargo test      # Rust tests
+cd apps/web && npm run build:wasm       # rebuild and copy the .wasm into the website
+```

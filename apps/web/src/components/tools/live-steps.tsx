@@ -12,9 +12,10 @@ import type { InputMode } from "@/lib/tools"
  * informed about where they are in the task (visibility of system status).
  */
 export function LiveSteps({ title, steps, input }: { title: string; steps: string[]; input: InputMode }) {
-  const { files, text } = useToolSession()
+  const { files, text, finished } = useToolSession()
   const started = input === "files" ? files.length > 0 : input === "text" ? text.trim().length > 0 : false
-  const current = started ? 1 : 0
+  // all steps ticked once the result is ready
+  const current = finished ? steps.length : started ? 1 : 0
 
   return (
     <div className="rounded-3xl border bg-card p-5">

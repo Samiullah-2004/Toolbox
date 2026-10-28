@@ -1,0 +1,107 @@
+// Main-thread side of the PDF engine: sends jobs to the PDF Web Worker and turns
+// its answers into results or friendly errors. A job can be cancelled with an AbortSignal.
+
+import { PDF_ERROR, type PageRef } from "@/lib/pdf/pdf-wasm"
+
+export type { PageRef }
+
+export type EngineRequest =
+  | { id: number; kind: "assemble"; files: ArrayBuffer[]; pages: PageRef[] }
+  | { id: number; kind: "split-zip"; files: ArrayBuffer[]; pages: PageRef[]; names: string[] }
+
+export type EngineResponse =
+  | { id: number; progress: number }
+  | { id: number; ok: true; bytes: ArrayBuffer }
+  | { id: number; ok: false; code: number; doc: number; message?: string }
+
+/** An error the user can understand, plus which file it is about (if any) */
+export class PdfEngineError extends Error {
+  constructor(
+    message: string,
+    readonly fileIndex: number = -1
+  ) {
+    super(message)
+  }
+}
+
+function friendlyMessage(code: number, fileName?: string) {
+  const file = fileName ? `"${fileName}"` : "This file"
+  switch (code) {
+    case PDF_ERROR.encrypted:
+      return `${file} is protected with a password. Remove the password first, then try again.`
+    case PDF_ERROR.invalid:
+      return `${file} doesn't look like a valid PDF, or it is damaged.`
+    case PDF_ERROR.pageOutOfRange:
+      return "One of the chosen pages doesn't exist in the file."
+    case PDF_ERROR.noPages:
+      return "Choose at least one page."
+    default:
+      return "Oops, the toolbox got stuck. Please try again."
+  }
+}
+
+let worker: Worker | null = null
+let nextId = 1
+
+function getWorker() {
+  worker ??= new Worker(new URL("../../workers/pdf-engine.worker.ts", import.meta.url), { type: "module" })
+  return worker
+}
+
+// The request without its id, taking File objects instead of buffers (applied to each job kind)
+type Job = EngineRequest extends infer Request
+  ? Request extends EngineRequest
+    ? Omit<Request, "id" | "files"> & { files: File[] }
+    : never
+  : never
+
+/**
+ * Runs a job in the PDF worker. Resolves with the result bytes.
+ * Aborting stops the worker immediately (a fresh one is started for the next job).
+ */
+export async function runPdfJob(
+  job: Job,
+  { signal, onProgress }: { signal?: AbortSignal; onProgress?: (fraction: number) => void } = {}
+): Promise<Uint8Array> {
+  const files = await Promise.all(job.files.map((f) => f.arrayBuffer()))
+  signal?.throwIfAborted()
+
+  const id = nextId++
+  const current = getWorker()
+
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      current.removeEventListener("message", onMessage)
+      current.removeEventListener("error", onError)
+      signal?.removeEventListener("abort", onAbort)
+    }
+    const onMessage = (event: MessageEvent<EngineResponse>) => {
+      const data = event.data
+      if (data.id !== id) return
+      if ("progress" in data) {
+        onProgress?.(data.progress)
+        return
+      }
+      cleanup()
+      if (data.ok) resolve(new Uint8Array(data.bytes))
+      else reject(new PdfEngineError(friendlyMessage(data.code, job.files[data.doc]?.name), data.doc))
+    }
+    const onError = () => {
+      cleanup()
+      worker = null
+      reject(new PdfEngineError(friendlyMessage(0)))
+    }
+    const onAbort = () => {
+      cleanup()
+      // Stopping mid-job: throw the worker away so no stale work continues
+      current.terminate()
+      worker = null
+      reject(new DOMException("Cancelled", "AbortError"))
+    }
+
+    current.addEventListener("message", onMessage)
+    current.addEventListener("error", onError)
+    signal?.addEventListener("abort", onAbort, { once: true })
+    current.postMessage({ ...job, id, files } as EngineRequest, files)
+  })
+}

@@ -36,6 +36,8 @@ export interface Tool {
   keywords: string[]
   /** Build-plan week this tool ships in */
   week: number
+  /** The tool works (otherwise its page shows a "still building" banner) */
+  live?: boolean
   popular?: boolean
 }
 
@@ -113,6 +115,7 @@ export const tools: Tool[] = [
     step: "Drag the files into the order you want.",
     keywords: ["combine", "join", "append", "together", "add pdf"],
     week: 2,
+    live: true,
     popular: true,
   },
   {
@@ -129,6 +132,7 @@ export const tools: Tool[] = [
     step: "Pick the pages or page ranges you want to keep.",
     keywords: ["extract pages", "separate", "cut", "pages", "remove pages"],
     week: 2,
+    live: true,
   },
   {
     slug: "organize-pdf",
@@ -144,6 +148,7 @@ export const tools: Tool[] = [
     step: "Drag pages to reorder them and tap rotate on any page.",
     keywords: ["organize", "rotate", "reorder", "sort", "upside down", "arrange", "pages"],
     week: 2,
+    live: true,
   },
   {
     slug: "compress-pdf",
@@ -175,6 +180,7 @@ export const tools: Tool[] = [
     step: "Draw your signature, then drag it into place.",
     keywords: ["signature", "e-sign", "esign", "autograph"],
     week: 2,
+    live: true,
   },
   {
     slug: "ocr",

@@ -127,16 +127,18 @@ async function ToolPageContent({ params }: { params: PageProps<"/tools/[slug]">[
       <ToolSessionProvider>
       <div className="container-page grid gap-6 py-6 sm:py-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="rise min-w-0 space-y-4" style={riseDelay(220)}>
-          <div className="flex items-center gap-3 rounded-2xl border border-warning/30 bg-warning/10 p-3 pr-4 sm:gap-4">
-            <LiveMascot mood="working" className="w-16 shrink-0 sm:w-20" label="Mistri at work" />
-            <div>
-              <p className="font-semibold">Mistri is still building this tool</p>
-              <p className="text-sm text-muted-foreground">
-                It is planned for Week {tool.week}. You can already try the upload area, but nothing is processed
-                yet.
-              </p>
+          {!tool.live && (
+            <div className="flex items-center gap-3 rounded-2xl border border-warning/30 bg-warning/10 p-3 pr-4 sm:gap-4">
+              <LiveMascot mood="working" className="w-16 shrink-0 sm:w-20" label="Mistri at work" />
+              <div>
+                <p className="font-semibold">Mistri is still building this tool</p>
+                <p className="text-sm text-muted-foreground">
+                  It is planned for Week {tool.week}. You can already try the upload area, but nothing is processed
+                  yet.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
           <ToolWorkspace slug={tool.slug} />
         </div>
 

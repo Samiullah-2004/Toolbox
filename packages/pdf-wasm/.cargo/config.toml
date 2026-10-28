@@ -1,0 +1,5 @@
+# lopdf pulls in getrandom (only used for PDF encryption, which Toolbox never does).
+# The "custom" backend means getrandom calls our own function in src/lib.rs instead of
+# OS code: crypto.getRandomValues in the browser. It also avoids Windows-only build steps.
+[build]
+rustflags = ['--cfg', 'getrandom_backend="custom"']

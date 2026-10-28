@@ -33,7 +33,7 @@ const items: {
   { id: "all", href: "/tools", label: "All tools", icon: LayoutGrid, bar: "bg-foreground", itemClass: "ml-1 border-l pl-1.5" },
   { id: "about", href: "/about", label: "About", icon: Info, bar: "bg-foreground" },
   // Privacy also lives in the footer and on the About page; it joins the bar where there is room
-  { id: "privacy", href: "/privacy", label: "Privacy", icon: ShieldCheck, bar: "bg-foreground", itemClass: "hidden xl:block" },
+  { id: "privacy", href: "/privacy", label: "Privacy", icon: ShieldCheck, bar: "bg-foreground", itemClass: "hidden 2xl:block" },
 ]
 
 /** Which navbar item a path belongs to: a category page or one of its tools lights up that category */
@@ -63,7 +63,7 @@ function NavLinks({ active }: { active: Section | null }) {
               onFocus={() => setHovered(item.id)}
               onBlur={() => setHovered(null)}
               className={cn(
-                "group relative isolate flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40",
+                "group relative isolate flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40",
                 isActive && "text-foreground"
               )}
             >
