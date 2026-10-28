@@ -13,7 +13,7 @@
 
 use std::cell::{Cell, RefCell};
 
-use crate::{PageRef, PdfError, assemble, page_count};
+use crate::{OpenPdf, PageRef, PdfError, assemble, page_count};
 
 /// The request itself is malformed (a bug in the caller, not a problem with the files)
 const BAD_REQUEST: i32 = 6;
@@ -21,6 +21,8 @@ const BAD_REQUEST: i32 = 6;
 thread_local! {
     static OUTPUT: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
     static ERROR_DOC: Cell<i32> = const { Cell::new(-1) };
+    /// The file opened with `pdf_open`, for copying out single pages
+    static OPEN: RefCell<Option<OpenPdf>> = const { RefCell::new(None) };
 }
 
 /// Reserves `len` bytes of WebAssembly memory for JavaScript to write into
@@ -111,6 +113,46 @@ pub unsafe extern "C" fn pdf_page_count(ptr: *mut u8, len: usize) -> i32 {
         Ok(count) => count as i32,
         Err(error) => -fail(error),
     }
+}
+
+/// Reads a PDF once and keeps it open for `pdf_extract`. Returns its page count, or minus an error code.
+///
+/// # Safety
+/// `ptr` must come from `alloc(len)` and hold `len` written bytes. This call frees it.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pdf_open(ptr: *mut u8, len: usize) -> i32 {
+    let request = unsafe { take_request(ptr, len) };
+    match OpenPdf::open(&request) {
+        Ok(open) => {
+            let count = open.page_count() as i32;
+            OPEN.set(Some(open));
+            count
+        }
+        Err(error) => -fail(error),
+    }
+}
+
+/// Copies one page of the open PDF into a new PDF (read it with `output_ptr`).
+/// Returns 0 on success, or an error code.
+#[unsafe(no_mangle)]
+pub extern "C" fn pdf_extract(page: u32, rotate: i32) -> i32 {
+    let result = OPEN.with_borrow(|open| match open {
+        Some(open) => open.extract(page, rotate),
+        None => Err(PdfError::NoPages),
+    });
+    match result {
+        Ok(bytes) => {
+            OUTPUT.set(bytes);
+            0
+        }
+        Err(error) => fail(error),
+    }
+}
+
+/// Releases the PDF opened with `pdf_open`
+#[unsafe(no_mangle)]
+pub extern "C" fn pdf_close() {
+    OPEN.set(None);
 }
 
 #[unsafe(no_mangle)]

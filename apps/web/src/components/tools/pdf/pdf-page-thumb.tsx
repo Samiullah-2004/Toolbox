@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { FileWarning } from "lucide-react"
 import { cn } from "cn"
-import { openPdf, renderPage } from "@/lib/pdf/pdfjs"
+import { isRenderCancelled, openPdf, renderPage } from "@/lib/pdf/pdfjs"
 
 /**
  * One page of a PDF drawn as a small picture. Draws only when it scrolls near the screen,
@@ -47,8 +47,9 @@ export function PdfPageThumb({
         if (cancelled) return
         setAspect(size.height / size.width)
         setState("ready")
-      } catch {
-        if (!cancelled) setState("error")
+      } catch (error) {
+        // a newer render of this canvas replaced this one; that one will finish the job
+        if (!cancelled && !isRenderCancelled(error)) setState("error")
       }
     }
 

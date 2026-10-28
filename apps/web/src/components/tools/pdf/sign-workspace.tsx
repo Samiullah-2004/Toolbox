@@ -22,7 +22,7 @@ import { DropOverlay } from "@/components/upload/drop-overlay"
 import { pdfProblem, usePdfInfo } from "@/hooks/use-pdf-info"
 import { outputName } from "@/lib/download"
 import { swapPreset } from "@/lib/motion"
-import { openPdf, renderPage } from "@/lib/pdf/pdfjs"
+import { isRenderCancelled, openPdf, renderPage } from "@/lib/pdf/pdfjs"
 import { stampSignatures, type Placement } from "@/lib/pdf/sign"
 import type { Tool } from "@/lib/tools"
 
@@ -61,8 +61,7 @@ export function SignWorkspace({ tool }: { tool: Tool }) {
             onReplace={chooseFiles}
             onApply={(signature, placements) =>
               run(async (signal) => {
-                const bytes = await stampSignatures(file, signature.url, placements)
-                signal.throwIfAborted()
+                const bytes = await stampSignatures(file, signature.url, placements, signal)
                 const pages = new Set(placements.map((p) => p.page)).size
                 return {
                   bytes,
@@ -133,9 +132,16 @@ function SignBoard({
       placeOnPage(sig)
       return
     }
-    // a redrawn signature keeps every spot and width, and takes its new height from its new shape
+    // A redrawn signature keeps every spot and takes its new shape. If the new shape is too tall
+    // for the space below it, shrink width and height together so it is never squashed.
     const change = sig.height / sig.width / (previous.height / previous.width)
-    setPlacements((current) => current.map((p) => ({ ...p, h: Math.min(p.h * change, 1 - p.y) })))
+    setPlacements((current) =>
+      current.map((p) => {
+        const h = p.h * change
+        const fit = Math.min(1, (1 - p.y) / h)
+        return { ...p, w: p.w * fit, h: h * fit }
+      })
+    )
   }
 
   const update = (id: string, next: Partial<Placement>) =>
@@ -326,7 +332,10 @@ function PageCanvas({
     }
 
     const observer = new ResizeObserver(() => {
-      draw().catch(() => toast.error("This page couldn't be shown"))
+      draw().catch((error) => {
+        // flipping pages or resizing quickly cancels older renders on purpose
+        if (!isRenderCancelled(error)) toast.error("This page couldn't be shown")
+      })
     })
     observer.observe(frame)
     return () => {

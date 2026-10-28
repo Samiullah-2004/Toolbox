@@ -40,13 +40,7 @@ function friendlyMessage(code: number, fileName?: string) {
   }
 }
 
-let worker: Worker | null = null
 let nextId = 1
-
-function getWorker() {
-  worker ??= new Worker(new URL("../../workers/pdf-engine.worker.ts", import.meta.url), { type: "module" })
-  return worker
-}
 
 // The request without its id, taking File objects instead of buffers (applied to each job kind)
 type Job = EngineRequest extends infer Request
@@ -56,8 +50,11 @@ type Job = EngineRequest extends infer Request
   : never
 
 /**
- * Runs a job in the PDF worker. Resolves with the result bytes.
- * Aborting stops the worker immediately (a fresh one is started for the next job).
+ * Runs a job in its own PDF worker and resolves with the result bytes.
+ *
+ * Every job gets a fresh worker that is closed when the job ends. Jobs on different pages
+ * (Next.js keeps visited pages alive) can't interfere, cancelling one never touches another,
+ * and the WebAssembly memory a big job used is given back afterwards.
  */
 export async function runPdfJob(
   job: Job,
@@ -67,41 +64,34 @@ export async function runPdfJob(
   signal?.throwIfAborted()
 
   const id = nextId++
-  const current = getWorker()
+  const worker = new Worker(new URL("../../workers/pdf-engine.worker.ts", import.meta.url), { type: "module" })
 
-  return new Promise((resolve, reject) => {
-    const cleanup = () => {
-      current.removeEventListener("message", onMessage)
-      current.removeEventListener("error", onError)
+  return new Promise<Uint8Array>((resolve, reject) => {
+    const finish = () => {
       signal?.removeEventListener("abort", onAbort)
+      worker.terminate()
     }
-    const onMessage = (event: MessageEvent<EngineResponse>) => {
+    const onAbort = () => {
+      finish()
+      reject(new DOMException("Cancelled", "AbortError"))
+    }
+
+    worker.onmessage = (event: MessageEvent<EngineResponse>) => {
       const data = event.data
       if (data.id !== id) return
       if ("progress" in data) {
         onProgress?.(data.progress)
         return
       }
-      cleanup()
+      finish()
       if (data.ok) resolve(new Uint8Array(data.bytes))
       else reject(new PdfEngineError(friendlyMessage(data.code, job.files[data.doc]?.name), data.doc))
     }
-    const onError = () => {
-      cleanup()
-      worker = null
+    worker.onerror = () => {
+      finish()
       reject(new PdfEngineError(friendlyMessage(0)))
     }
-    const onAbort = () => {
-      cleanup()
-      // Stopping mid-job: throw the worker away so no stale work continues
-      current.terminate()
-      worker = null
-      reject(new DOMException("Cancelled", "AbortError"))
-    }
-
-    current.addEventListener("message", onMessage)
-    current.addEventListener("error", onError)
     signal?.addEventListener("abort", onAbort, { once: true })
-    current.postMessage({ ...job, id, files } as EngineRequest, files)
+    worker.postMessage({ ...job, id, files } as EngineRequest, files)
   })
 }

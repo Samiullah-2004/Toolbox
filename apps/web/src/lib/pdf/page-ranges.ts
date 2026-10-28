@@ -1,7 +1,8 @@
 /**
  * Reads what people type for pages: "1-3, 5, 8-" -> [1, 2, 3, 5, 8, 9, 10] (for a 10-page file).
- * Forgiving on purpose: spaces, en dashes and "to" are fine; pages past the end are ignored.
- * Returns null if something can't be understood, so the field can show a hint.
+ * Forgiving on purpose: spaces, en dashes and "to" are fine, and a range may run past the end
+ * ("8-20" means 8 to the last page). A page or range that *starts* past the end ("20", "12-")
+ * is a mistake, so it returns null and the field shows a hint, like any other typo.
  */
 export function parsePageRanges(input: string, pageCount: number): number[] | null {
   const pages = new Set<number>()
@@ -17,7 +18,7 @@ export function parsePageRanges(input: string, pageCount: number): number[] | nu
     const [, startText, dash, endText] = match
     const start = startText ? Number(startText) : 1
     const end = dash ? (endText ? Number(endText) : pageCount) : start
-    if (start < 1 || end < start) return null
+    if (start < 1 || start > pageCount || end < start) return null
     for (let page = start; page <= Math.min(end, pageCount); page++) pages.add(page)
   }
   return [...pages].sort((a, b) => a - b)

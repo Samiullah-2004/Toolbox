@@ -1,19 +1,25 @@
 // pdf.js (Mozilla's PDF renderer) for page previews: thumbnails, page counts and the sign view.
 // Loaded on demand, only in the browser, the first time a PDF needs to be shown.
 
-import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist"
+import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist"
 
 type PdfJs = typeof import("pdfjs-dist")
 
 let pdfjs: Promise<PdfJs> | null = null
 
 function loadPdfJs() {
-  pdfjs ??= import("pdfjs-dist").then((lib) => {
-    lib.GlobalWorkerOptions.workerPort = new Worker(new URL("../../workers/pdfjs.worker.ts", import.meta.url), {
-      type: "module",
+  pdfjs ??= import("pdfjs-dist")
+    .then((lib) => {
+      lib.GlobalWorkerOptions.workerPort = new Worker(new URL("../../workers/pdfjs.worker.ts", import.meta.url), {
+        type: "module",
+      })
+      return lib
     })
-    return lib
-  })
+    .catch((error) => {
+      // don't keep a failed download around: the next preview tries again
+      pdfjs = null
+      throw error
+    })
   return pdfjs
 }
 
@@ -41,14 +47,52 @@ export function openPdf(file: File): Promise<PDFDocumentProxy> {
   return doc
 }
 
-/** Draws a page into a canvas, sized to `width` CSS pixels */
+// The render running on each canvas. pdf.js can't draw twice on one canvas at the same time.
+const activeRenders = new WeakMap<HTMLCanvasElement, RenderTask>()
+// The newest request for each canvas; older requests that were waiting give up
+const latestRequest = new WeakMap<HTMLCanvasElement, number>()
+let requestCounter = 0
+
+function cancelledError() {
+  const error = new Error("Rendering cancelled, a newer one replaced it")
+  error.name = "RenderingCancelledException"
+  return error
+}
+
+/** True for the error pdf.js uses when a render is cancelled on purpose (not a real failure) */
+export function isRenderCancelled(error: unknown) {
+  return error instanceof Error && error.name === "RenderingCancelledException"
+}
+
+/**
+ * Draws a page into a canvas, sized to `width` CSS pixels. If the canvas is still drawing
+ * something else (the user flipped pages quickly, or resized the window), that render is
+ * cancelled first, so the newest request always wins.
+ */
 export async function renderPage(page: PDFPageProxy, canvas: HTMLCanvasElement, width: number) {
+  const ticket = ++requestCounter
+  latestRequest.set(canvas, ticket)
+  const previous = activeRenders.get(canvas)
+  if (previous) {
+    previous.cancel()
+    await previous.promise.catch(() => {})
+    // someone asked again while we waited: let the newest request draw instead
+    if (latestRequest.get(canvas) !== ticket) throw cancelledError()
+  }
+
   const unscaled = page.getViewport({ scale: 1 })
   const ratio = Math.min(window.devicePixelRatio || 1, 2)
   const viewport = page.getViewport({ scale: (width / unscaled.width) * ratio })
   canvas.width = Math.floor(viewport.width)
   canvas.height = Math.floor(viewport.height)
-  await page.render({ canvas, viewport }).promise
+
+  const task = page.render({ canvas, viewport })
+  activeRenders.set(canvas, task)
+  try {
+    await task.promise
+  } finally {
+    if (activeRenders.get(canvas) === task) activeRenders.delete(canvas)
+  }
   return { width: viewport.width / ratio, height: viewport.height / ratio }
 }
 

@@ -242,17 +242,38 @@ export function useToolJob() {
   const [state, setState] = useState<JobState>({ status: "idle" })
   const controller = useRef<AbortController | null>(null)
 
+  // Next.js keeps visited pages alive but hidden, so a job can finish while its page is hidden.
+  // The panel swap animation can't run on a hidden page (it would stay stuck on "working"),
+  // so hold the change back and apply it when the page is shown again.
+  const shown = useRef(true)
+  const pending = useRef<JobState | null>(null)
+  useLayoutEffect(() => {
+    shown.current = true
+    if (pending.current) {
+      const next = pending.current
+      pending.current = null
+      setState(next)
+    }
+    return () => {
+      shown.current = false
+    }
+  }, [])
+  const update = (next: JobState) => {
+    if (shown.current) setState(next)
+    else pending.current = next
+  }
+
   const run = async (
     work: (signal: AbortSignal, onProgress: (fraction: number) => void) => Promise<ToolResult>
   ) => {
     controller.current = new AbortController()
-    setState({ status: "working", progress: null })
+    update({ status: "working", progress: null })
     try {
-      const result = await work(controller.current.signal, (progress) => setState({ status: "working", progress }))
-      setState({ status: "done", result })
+      const result = await work(controller.current.signal, (progress) => update({ status: "working", progress }))
+      update({ status: "done", result })
       setFinished(true)
     } catch (error) {
-      setState({ status: "idle" })
+      update({ status: "idle" })
       if (error instanceof DOMException && error.name === "AbortError") {
         toast("Stopped", { description: "Nothing was changed. Your files are still here." })
         return

@@ -1,11 +1,13 @@
 //! Toolbox PDF engine.
 //!
-//! One operation does all the page work: [`assemble`] takes any number of PDFs and an
-//! ordered list of pages (with an optional rotation for each) and builds a new PDF.
+//! [`assemble`] takes any number of PDFs and an ordered list of pages (with an optional
+//! rotation for each) and builds a new PDF:
 //!
 //! - Merge PDF:        every page of every file, in file order
 //! - Split PDF:        the chosen pages of one file
 //! - Reorder & Rotate: all pages of one file, in a new order, with rotations
+//!
+//! [`OpenPdf`] reads a file once and then copies out single pages, for "a PDF for each page".
 //!
 //! It compiles to WebAssembly and runs inside the user's browser, so files are never
 //! uploaded. The small C-style interface in [`ffi`] is what JavaScript calls.
@@ -40,7 +42,7 @@ pub enum PdfError {
 }
 
 impl PdfError {
-    /// Numeric code shared with the JavaScript side (see apps/web/src/lib/pdf/engine.ts)
+    /// Numeric code shared with the JavaScript side (see apps/web/src/lib/pdf/pdf-wasm.ts)
     pub fn code(&self) -> i32 {
         match self {
             PdfError::Invalid { .. } => 1,
@@ -62,8 +64,8 @@ impl PdfError {
     }
 }
 
-/// Opens a PDF. Files with an empty owner password are opened automatically;
-/// files that really need a password are reported as `Encrypted`.
+/// Opens a PDF. Files with only an owner password (e.g. "no printing" bank statements) are
+/// decrypted automatically; files that really need a password are reported as `Encrypted`.
 fn load(bytes: &[u8], doc: u32) -> Result<Document, PdfError> {
     match Document::load_mem(bytes) {
         Ok(document) if document.is_encrypted() => Err(PdfError::Encrypted { doc }),
@@ -76,6 +78,41 @@ fn load(bytes: &[u8], doc: u32) -> Result<Document, PdfError> {
 /// Number of pages in a PDF
 pub fn page_count(bytes: &[u8]) -> Result<u32, PdfError> {
     Ok(load(bytes, 0)?.get_pages().len() as u32)
+}
+
+/// Follows one indirect reference, so `5 0 R` and a direct value read the same
+fn resolve<'a>(doc: &'a Document, object: &'a Object) -> &'a Object {
+    match object {
+        Object::Reference(id) => doc.get_object(*id).unwrap_or(object),
+        _ => object,
+    }
+}
+
+/// A page's own rotation, whether it is written as 90, 90.0 or a reference to either
+fn rotation_of(doc: &Document, page: &Dictionary) -> i64 {
+    match page.get(b"Rotate").map(|value| resolve(doc, value)) {
+        Ok(Object::Integer(degrees)) => *degrees,
+        Ok(Object::Real(degrees)) => degrees.round() as i64,
+        _ => 0,
+    }
+}
+
+fn normalize_rotation(degrees: i64) -> i64 {
+    let snapped = (degrees as f64 / 90.0).round() as i64 * 90;
+    snapped.rem_euclid(360)
+}
+
+/// Sets a page's total rotation to its current rotation plus `extra` degrees
+fn rotate_page(doc: &mut Document, page_id: ObjectId, extra: i32) -> Result<(), PdfError> {
+    let current = rotation_of(doc, doc.get_dictionary(page_id).map_err(|_| PdfError::Save)?);
+    let rotation = normalize_rotation(current + extra as i64);
+    let page = doc.get_dictionary_mut(page_id).map_err(|_| PdfError::Save)?;
+    if rotation == 0 {
+        page.remove(b"Rotate");
+    } else {
+        page.set("Rotate", rotation);
+    }
+    Ok(())
 }
 
 /// Some page settings can live on a parent node of the page tree instead of on the page.
@@ -115,9 +152,53 @@ fn copy_inherited_attributes(doc: &mut Document, page_id: ObjectId) {
     }
 }
 
-fn normalize_rotation(degrees: i64) -> i64 {
-    let snapped = (degrees as f64 / 90.0).round() as i64 * 90;
-    snapped.rem_euclid(360)
+/// The form (fillable fields) of a document, if it has one
+fn acroform(doc: &Document) -> Option<Dictionary> {
+    let root = doc.trailer.get(b"Root").ok()?;
+    let catalog = resolve(doc, root).as_dict().ok()?;
+    let form = catalog.get(b"AcroForm").ok()?;
+    resolve(doc, form).as_dict().ok().cloned()
+}
+
+/// The field references listed in a form
+fn form_fields(doc: &Document, form: &Dictionary) -> Vec<Object> {
+    form.get(b"Fields")
+        .map(|fields| resolve(doc, fields))
+        .and_then(Object::as_array)
+        .cloned()
+        .unwrap_or_default()
+}
+
+/// Wraps pages into a page tree and catalog, cleans up and writes the file
+fn finish(mut out: Document, kids: Vec<Object>, pages_id: ObjectId, form: Option<Dictionary>) -> Result<Vec<u8>, PdfError> {
+    let count = kids.len() as i64;
+    out.objects.insert(
+        pages_id,
+        Object::Dictionary(dictionary! {
+            "Type" => "Pages",
+            "Kids" => kids,
+            "Count" => count,
+        }),
+    );
+    let mut catalog = dictionary! {
+        "Type" => "Catalog",
+        "Pages" => pages_id,
+    };
+    // Keep fillable forms working: without /AcroForm, readers ignore the fields on the pages
+    if let Some(form) = form {
+        catalog.set("AcroForm", form);
+    }
+    let catalog_id = out.add_object(catalog);
+    out.trailer.set("Root", catalog_id);
+
+    // Drop everything the new file doesn't use: old catalogs, page trees, bookmarks
+    out.prune_objects();
+    out.renumber_objects();
+    out.compress();
+
+    let mut bytes = Vec::new();
+    out.save_to(&mut bytes).map_err(|_| PdfError::Save)?;
+    Ok(bytes)
 }
 
 /// Builds a new PDF from the given pages, in the given order.
@@ -129,6 +210,7 @@ pub fn assemble(inputs: &[&[u8]], selection: &[PageRef]) -> Result<Vec<u8>, PdfE
     let mut out = Document::with_version("1.7");
     let mut next_id = 1;
     let mut page_maps: Vec<BTreeMap<u32, ObjectId>> = Vec::with_capacity(inputs.len());
+    let mut forms: Vec<Dictionary> = Vec::new();
 
     // Only load the files the selection actually uses
     let used_docs: HashSet<u32> = selection.iter().map(|page| page.doc).collect();
@@ -147,6 +229,9 @@ pub fn assemble(inputs: &[&[u8]], selection: &[PageRef]) -> Result<Vec<u8>, PdfE
         let pages = doc.get_pages();
         for page_id in pages.values() {
             copy_inherited_attributes(&mut doc, *page_id);
+        }
+        if let Some(form) = acroform(&doc) {
+            forms.push(form);
         }
         page_maps.push(pages);
         out.objects.extend(doc.objects);
@@ -172,41 +257,104 @@ pub fn assemble(inputs: &[&[u8]], selection: &[PageRef]) -> Result<Vec<u8>, PdfE
             out.add_object(copy)
         };
 
-        let page = out.get_dictionary_mut(target).map_err(|_| PdfError::Save)?;
-        page.set("Parent", pages_id);
-        let current = page.get(b"Rotate").and_then(Object::as_i64).unwrap_or(0);
-        let rotation = normalize_rotation(current + page_ref.rotate as i64);
-        if rotation == 0 {
-            page.remove(b"Rotate");
-        } else {
-            page.set("Rotate", rotation);
-        }
+        out.get_dictionary_mut(target).map_err(|_| PdfError::Save)?.set("Parent", pages_id);
+        rotate_page(&mut out, target, page_ref.rotate)?;
         kids.push(target.into());
     }
 
-    let count = kids.len() as i64;
-    out.objects.insert(
-        pages_id,
-        Object::Dictionary(dictionary! {
-            "Type" => "Pages",
-            "Kids" => kids,
-            "Count" => count,
-        }),
-    );
-    let catalog_id = out.add_object(dictionary! {
-        "Type" => "Catalog",
-        "Pages" => pages_id,
+    // Merge the forms of all files: the first file's settings, everyone's fields
+    let form = forms.first().cloned().map(|mut merged| {
+        let fields: Vec<Object> = forms.iter().flat_map(|form| form_fields(&out, form)).collect();
+        merged.set("Fields", fields);
+        merged
     });
-    out.trailer.set("Root", catalog_id);
 
-    // Drop everything the new page tree doesn't use: old catalogs, page trees, bookmarks
-    out.prune_objects();
-    out.renumber_objects();
-    out.compress();
+    finish(out, kids, pages_id, form)
+}
 
-    let mut bytes = Vec::new();
-    out.save_to(&mut bytes).map_err(|_| PdfError::Save)?;
-    Ok(bytes)
+/// A PDF that has been read once, so single pages can be copied out of it quickly
+/// (for "a PDF for each page": the file is parsed once, not once per page).
+pub struct OpenPdf {
+    doc: Document,
+    pages: BTreeMap<u32, ObjectId>,
+    form: Option<Dictionary>,
+}
+
+impl OpenPdf {
+    pub fn open(bytes: &[u8]) -> Result<Self, PdfError> {
+        let mut doc = load(bytes, 0)?;
+        let pages = doc.get_pages();
+        for page_id in pages.values() {
+            copy_inherited_attributes(&mut doc, *page_id);
+        }
+        let form = acroform(&doc);
+        Ok(Self { doc, pages, form })
+    }
+
+    pub fn page_count(&self) -> u32 {
+        self.pages.len() as u32
+    }
+
+    /// Adds `root` and everything it refers to into `out`, without wandering into other pages
+    fn copy_reachable(&self, root: ObjectId, keep_page: ObjectId, out: &mut Document) {
+        let mut stack = vec![root];
+        while let Some(id) = stack.pop() {
+            if out.objects.contains_key(&id) {
+                continue;
+            }
+            let Ok(object) = self.doc.get_object(id) else { continue };
+            let is_page_node = matches!(object.type_name(), Ok(b"Page") | Ok(b"Pages"));
+            // Links can point at other pages; following them would pull in the whole document
+            if is_page_node && id != keep_page {
+                continue;
+            }
+            collect_refs(object, is_page_node, &mut stack);
+            out.objects.insert(id, object.clone());
+        }
+    }
+
+    /// One page as its own PDF, turned by `rotate` degrees
+    pub fn extract(&self, page: u32, rotate: i32) -> Result<Vec<u8>, PdfError> {
+        let page_id = *self.pages.get(&page).ok_or(PdfError::PageOutOfRange { doc: 0, page })?;
+
+        let mut out = Document::with_version("1.7");
+        self.copy_reachable(page_id, page_id, &mut out);
+
+        // Keep the form fields that belong to this page
+        let form = self.form.clone().map(|mut form| {
+            let fields: Vec<Object> = form_fields(&self.doc, &form)
+                .into_iter()
+                .filter(|field| field.as_reference().is_ok_and(|id| out.objects.contains_key(&id)))
+                .collect();
+            form.set("Fields", fields);
+            let mut extra = Vec::new();
+            collect_refs(&Object::Dictionary(form.clone()), false, &mut extra);
+            for id in extra {
+                self.copy_reachable(id, page_id, &mut out);
+            }
+            form
+        });
+
+        out.max_id = out.objects.keys().map(|(number, _)| *number).max().unwrap_or(0);
+        let pages_id = out.new_object_id();
+        out.get_dictionary_mut(page_id).map_err(|_| PdfError::Save)?.set("Parent", pages_id);
+        rotate_page(&mut out, page_id, rotate)?;
+        finish(out, vec![page_id.into()], pages_id, form)
+    }
+}
+
+/// Every object a value points to. For page nodes, `/Parent` is skipped (it leads to the whole tree).
+fn collect_refs(object: &Object, skip_parent: bool, out: &mut Vec<ObjectId>) {
+    match object {
+        Object::Reference(id) => out.push(*id),
+        Object::Array(items) => items.iter().for_each(|item| collect_refs(item, false, out)),
+        Object::Dictionary(dict) => dict
+            .iter()
+            .filter(|(key, _)| !(skip_parent && key.as_slice() == b"Parent"))
+            .for_each(|(_, value)| collect_refs(value, false, out)),
+        Object::Stream(stream) => stream.dict.iter().for_each(|(_, value)| collect_refs(value, false, out)),
+        _ => {}
+    }
 }
 
 // getrandom is only used by lopdf for encryption, which Toolbox never does. The build sets
@@ -246,11 +394,11 @@ unsafe extern "Rust" fn __getrandom_v03_custom(dest: *mut u8, len: usize) -> Res
 mod tests {
     use super::*;
     use lopdf::content::{Content, Operation};
-    use lopdf::{Stream, dictionary};
+    use lopdf::{EncryptionState, EncryptionVersion, Permissions, Stream, dictionary};
 
     /// A small PDF whose pages say "Doc <tag> page <n>", built like real-world files:
     /// MediaBox and Resources live on the Pages node and are inherited by each page.
-    fn sample(tag: &str, pages: u32) -> Vec<u8> {
+    fn sample_doc(tag: &str, pages: u32) -> Document {
         let mut doc = Document::with_version("1.5");
         let pages_id = doc.new_object_id();
         let font_id = doc.add_object(dictionary! {
@@ -284,9 +432,36 @@ mod tests {
         );
         let catalog_id = doc.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
         doc.trailer.set("Root", catalog_id);
+        // a file ID, which encryption needs
+        let id = Object::String(tag.repeat(16).into_bytes(), lopdf::StringFormat::Hexadecimal);
+        doc.trailer.set("ID", vec![id.clone(), id]);
+        doc
+    }
+
+    fn save(mut doc: Document) -> Vec<u8> {
         let mut bytes = Vec::new();
         doc.save_to(&mut bytes).unwrap();
         bytes
+    }
+
+    fn sample(tag: &str, pages: u32) -> Vec<u8> {
+        save(sample_doc(tag, pages))
+    }
+
+    /// A sample whose page 2 carries a fillable text field
+    fn sample_with_form() -> Vec<u8> {
+        let mut doc = sample_doc("F", 2);
+        let page2 = doc.get_pages()[&2];
+        let field = doc.add_object(dictionary! {
+            "Type" => "Annot", "Subtype" => "Widget", "FT" => "Tx",
+            "T" => Object::string_literal("Name"),
+            "Rect" => vec![72.into(), 600.into(), 300.into(), 630.into()],
+            "P" => page2,
+        });
+        doc.get_dictionary_mut(page2).unwrap().set("Annots", vec![field.into()]);
+        let root = doc.trailer.get(b"Root").unwrap().as_reference().unwrap();
+        doc.get_dictionary_mut(root).unwrap().set("AcroForm", dictionary! { "Fields" => vec![field.into()] });
+        save(doc)
     }
 
     /// The text of each page of a result, plus each page's rotation
@@ -296,10 +471,14 @@ mod tests {
             .iter()
             .map(|(number, id)| {
                 let text = doc.extract_text(&[*number]).unwrap().trim().to_string();
-                let rotate = doc.get_dictionary(*id).unwrap().get(b"Rotate").and_then(Object::as_i64).unwrap_or(0);
-                (text, rotate)
+                (text, rotation_of(&doc, doc.get_dictionary(*id).unwrap()))
             })
             .collect()
+    }
+
+    fn form_field_count(bytes: &[u8]) -> Option<usize> {
+        let doc = Document::load_mem(bytes).unwrap();
+        acroform(&doc).map(|form| form_fields(&doc, &form).len())
     }
 
     fn all_pages(doc: u32, count: u32) -> Vec<PageRef> {
@@ -369,12 +548,94 @@ mod tests {
     }
 
     #[test]
+    fn reads_rotation_written_as_real_or_reference() {
+        // /Rotate 90.0
+        let mut doc = sample_doc("R", 2);
+        let pages = doc.get_pages();
+        doc.get_dictionary_mut(pages[&1]).unwrap().set("Rotate", Object::Real(90.0));
+        // /Rotate 7 0 R, pointing at 90
+        let ninety = doc.add_object(Object::Integer(90));
+        doc.get_dictionary_mut(pages[&2]).unwrap().set("Rotate", ninety);
+        let bytes = save(doc);
+
+        let turned = assemble(&[&bytes], &[PageRef { doc: 0, page: 1, rotate: 90 }, PageRef { doc: 0, page: 2, rotate: 90 }]).unwrap();
+        let rotations: Vec<i64> = describe(&turned).into_iter().map(|(_, r)| r).collect();
+        assert_eq!(rotations, [180, 180]);
+
+        let kept = assemble(&[&bytes], &all_pages(0, 2)).unwrap();
+        let rotations: Vec<i64> = describe(&kept).into_iter().map(|(_, r)| r).collect();
+        assert_eq!(rotations, [90, 90], "a plain split must keep the original rotation");
+    }
+
+    #[test]
     fn same_page_twice_gets_separate_rotations() {
         let a = sample("A", 1);
         let selection = [PageRef { doc: 0, page: 1, rotate: 0 }, PageRef { doc: 0, page: 1, rotate: 90 }];
         let result = assemble(&[&a], &selection).unwrap();
         let rotations: Vec<i64> = describe(&result).into_iter().map(|(_, rotate)| rotate).collect();
         assert_eq!(rotations, [0, 90]);
+    }
+
+    #[test]
+    fn keeps_fillable_forms() {
+        let form = sample_with_form();
+        let page2 = assemble(&[&form], &[PageRef { doc: 0, page: 2, rotate: 0 }]).unwrap();
+        assert_eq!(form_field_count(&page2), Some(1), "split lost the form");
+        let merged = assemble(&[&sample("A", 1), &form], &[PageRef { doc: 0, page: 1, rotate: 0 }, PageRef { doc: 1, page: 2, rotate: 0 }]).unwrap();
+        assert_eq!(form_field_count(&merged), Some(1), "merge lost the form");
+    }
+
+    #[test]
+    fn opens_files_with_only_an_owner_password() {
+        let mut doc = sample_doc("E", 2);
+        let state = EncryptionState::try_from(EncryptionVersion::V2 {
+            document: &doc,
+            owner_password: "owner-secret",
+            user_password: "",
+            key_length: 128,
+            permissions: Permissions::PRINTABLE,
+        })
+        .unwrap();
+        doc.encrypt(&state).unwrap();
+        let encrypted = save(doc);
+
+        let result = assemble(&[&encrypted], &all_pages(0, 2)).unwrap();
+        let out = Document::load_mem(&result).unwrap();
+        assert!(!out.trailer.has(b"Encrypt"), "the result should be a normal, unlocked PDF");
+        assert_eq!(describe(&result)[1].0, "Doc E page 2");
+    }
+
+    #[test]
+    fn refuses_files_that_need_a_password() {
+        let mut doc = sample_doc("P", 1);
+        let state = EncryptionState::try_from(EncryptionVersion::V2 {
+            document: &doc,
+            owner_password: "owner",
+            user_password: "user",
+            key_length: 128,
+            permissions: Permissions::PRINTABLE,
+        })
+        .unwrap();
+        doc.encrypt(&state).unwrap();
+        assert_eq!(assemble(&[&save(doc)], &all_pages(0, 1)), Err(PdfError::Encrypted { doc: 0 }));
+    }
+
+    #[test]
+    fn extracts_single_pages_from_one_read() {
+        let open = OpenPdf::open(&sample("S", 4)).unwrap();
+        assert_eq!(open.page_count(), 4);
+        let third = open.extract(3, 90).unwrap();
+        assert_eq!(describe(&third), [("Doc S page 3".to_string(), 90)]);
+        // only that page's objects are copied, not the whole file
+        assert_eq!(Document::load_mem(&third).unwrap().get_pages().len(), 1);
+        assert_eq!(open.extract(9, 0), Err(PdfError::PageOutOfRange { doc: 0, page: 9 }));
+    }
+
+    #[test]
+    fn extracted_pages_keep_their_own_form_fields() {
+        let open = OpenPdf::open(&sample_with_form()).unwrap();
+        assert_eq!(form_field_count(&open.extract(2, 0).unwrap()), Some(1));
+        assert_eq!(form_field_count(&open.extract(1, 0).unwrap()), Some(0));
     }
 
     #[test]
