@@ -43,6 +43,39 @@ const liveWorkspaces: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "sign-pdf": dynamic(() => import("@/components/tools/pdf/sign-workspace").then((mod) => mod.SignWorkspace), {
     loading: WorkspaceLoading,
   }),
+  "convert-video": dynamic(() => import("@/components/tools/media/video-editors").then((mod) => mod.ConvertVideoWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "compress-video": dynamic(() => import("@/components/tools/media/video-editors").then((mod) => mod.CompressVideoWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "trim-video": dynamic(() => import("@/components/tools/media/video-editors").then((mod) => mod.TrimVideoWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "video-to-gif": dynamic(() => import("@/components/tools/media/video-editors").then((mod) => mod.VideoToGifWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "extract-frames": dynamic(() => import("@/components/tools/media/video-editors").then((mod) => mod.ExtractFramesWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "mute-video": dynamic(() => import("@/components/tools/media/video-editors").then((mod) => mod.MuteVideoWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "video-to-mp3": dynamic(() => import("@/components/tools/media/audio-editors").then((mod) => mod.VideoToMp3Workspace), {
+    loading: WorkspaceLoading,
+  }),
+  "trim-audio": dynamic(() => import("@/components/tools/media/audio-editors").then((mod) => mod.TrimAudioWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "merge-audio": dynamic(() => import("@/components/tools/media/audio-editors").then((mod) => mod.MergeAudioWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "whatsapp-voice-note": dynamic(() => import("@/components/tools/media/audio-editors").then((mod) => mod.VoiceNoteWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "audio-effects": dynamic(() => import("@/components/tools/media/audio-editors").then((mod) => mod.AudioEffectsWorkspace), {
+    loading: WorkspaceLoading,
+  }),
 }
 
 export function ToolWorkspace({ slug }: { slug: string }) {

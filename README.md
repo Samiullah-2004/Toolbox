@@ -17,8 +17,8 @@ Built in 8 weekly steps. Each tool page shows the week it ships in.
 | --- | --- | --- |
 | 1 | Website, design system, tool pages, search, drag and drop | Done |
 | 2 | PDF tools: merge, split, reorder and rotate, sign (Rust + WebAssembly) | Done |
-| 3 | Audio and video tools (ffmpeg.wasm) | Next |
-| 4 | Image tools, utilities, Jugaad Mode | |
+| 3 | Audio and video tools (ffmpeg.wasm) | Done |
+| 4 | Image tools, utilities, Jugaad Mode | Next |
 | 5 | Database, temporary file storage, daily limits (Supabase, Upstash) | |
 | 6 | Python server: OCR, PDF to Word, tables | |
 | 7 | Python server: scanner, redaction, speech to text | |
@@ -27,7 +27,7 @@ Built in 8 weekly steps. Each tool page shows the week it ships in.
 ## Tech stack
 
 - **Frontend:** Next.js 16, TypeScript, Tailwind CSS, shadcn/ui
-- **Browser tools:** Rust/WebAssembly (lopdf), pdf.js, pdf-lib, dnd-kit, signature_pad, Web Workers; ffmpeg.wasm next
+- **Browser tools:** Rust/WebAssembly (lopdf), ffmpeg.wasm (@ffmpeg/core), pdf.js, pdf-lib, dnd-kit, signature_pad, Web Workers
 - **Backend:** Python, FastAPI, Tesseract, OpenCV, pdfplumber
 - **Data and hosting:** Supabase, Vercel, Render
 

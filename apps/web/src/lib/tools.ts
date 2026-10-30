@@ -291,6 +291,7 @@ export const tools: Tool[] = [
     step: "Pick the format you need. MP4 plays almost everywhere.",
     keywords: ["mp4", "mov", "mkv", "webm", "avi", "hevc", "h264", "iphone video", "format"],
     week: 3,
+    live: true,
     popular: true,
   },
   {
@@ -307,6 +308,7 @@ export const tools: Tool[] = [
     step: "Choose a target size, for example 16 MB.",
     keywords: ["reduce size", "smaller", "whatsapp", "16mb", "shrink"],
     week: 3,
+    live: true,
     popular: true,
   },
   {
@@ -323,6 +325,7 @@ export const tools: Tool[] = [
     step: "Drag the handles to choose the part to keep.",
     keywords: ["cut", "crop", "shorten", "clip"],
     week: 3,
+    live: true,
   },
   {
     slug: "video-to-gif",
@@ -338,6 +341,7 @@ export const tools: Tool[] = [
     step: "Select up to 15 seconds and pick the size.",
     keywords: ["gif", "animation", "meme"],
     week: 3,
+    live: true,
   },
   {
     slug: "extract-frames",
@@ -353,6 +357,7 @@ export const tools: Tool[] = [
     step: "Pause on the moment you want, or pick one frame every few seconds.",
     keywords: ["screenshot", "still", "thumbnail", "jpg from video", "snapshot"],
     week: 3,
+    live: true,
   },
   {
     slug: "mute-video",
@@ -368,6 +373,7 @@ export const tools: Tool[] = [
     step: "We strip out the sound and keep the picture exactly as it is.",
     keywords: ["mute", "silent", "no sound", "delete audio"],
     week: 3,
+    live: true,
   },
 
   // Audio (Awaaz)
@@ -385,6 +391,7 @@ export const tools: Tool[] = [
     step: "Pick the quality. 128 kbps is plenty for voice.",
     keywords: ["extract audio", "mp3", "convert", "sound from video", "audio"],
     week: 3,
+    live: true,
     popular: true,
   },
   {
@@ -401,6 +408,7 @@ export const tools: Tool[] = [
     step: "Drag over the wave to select what to keep or cut.",
     keywords: ["cut", "trim", "crop audio", "ringtone", "waveform", "silence"],
     week: 3,
+    live: true,
   },
   {
     slug: "merge-audio",
@@ -417,6 +425,7 @@ export const tools: Tool[] = [
     step: "Drag the clips into the right order.",
     keywords: ["combine", "join", "concat", "voice notes"],
     week: 3,
+    live: true,
   },
   {
     slug: "whatsapp-voice-note",
@@ -432,6 +441,7 @@ export const tools: Tool[] = [
     step: "We convert it to OGG Opus, the voice note format.",
     keywords: ["whatsapp", "voice note", "ogg", "opus", "voice message"],
     week: 3,
+    live: true,
     popular: true,
   },
   {
@@ -448,6 +458,7 @@ export const tools: Tool[] = [
     step: "Move the sliders and listen to the preview.",
     keywords: ["volume", "louder", "speed", "faster", "slow", "fade", "boost"],
     week: 3,
+    live: true,
   },
   {
     slug: "noise-removal",

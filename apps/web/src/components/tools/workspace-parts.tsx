@@ -3,7 +3,7 @@
 // Building blocks shared by every tool workspace: getting files in, showing progress,
 // and handing the result back to the user.
 
-import { useEffectEvent, useLayoutEffect, useRef, useState } from "react"
+import { useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { m } from "motion/react"
 import { ArrowRight, CloudUpload, Download, FolderOpen, Lock, RotateCcw, X } from "lucide-react"
@@ -15,6 +15,7 @@ import { Mascot } from "@/components/brand/mascot"
 import { DashedOutline } from "@/components/motion/dashed-outline"
 import { ToolIcon } from "@/components/tools/tool-icon"
 import { useToolSession } from "@/components/tools/tool-session"
+import { useObjectUrlRef } from "@/hooks/use-object-url-ref"
 import { useWindowFileDrop } from "@/hooks/use-window-file-drop"
 import { categoryStyles } from "@/lib/category-styles"
 import { downloadBytes } from "@/lib/download"
@@ -330,6 +331,26 @@ export function WorkingPanel({ label, progress, onCancel }: { label: string; pro
   )
 }
 
+/** Lets people play or look at a video, sound or picture before downloading it */
+function ResultPreview({ result }: { result: ToolResult }) {
+  const type = result.type ?? ""
+  const blob = useMemo(() => new Blob([result.bytes as BlobPart], { type }), [result, type])
+  const mediaRef = useObjectUrlRef<HTMLMediaElement>(blob)
+  const imageRef = useObjectUrlRef<HTMLImageElement>(blob)
+
+  if (type.startsWith("video/")) {
+    return <video ref={mediaRef} controls playsInline preload="metadata" className="mt-4 max-h-64 w-full max-w-md rounded-xl bg-black" />
+  }
+  if (type.startsWith("audio/")) {
+    return <audio ref={mediaRef} controls preload="metadata" className="mt-4 w-full max-w-md" />
+  }
+  if (type.startsWith("image/")) {
+    // eslint-disable-next-line @next/next/no-img-element -- a temporary local picture, nothing to optimise
+    return <img ref={imageRef} alt="Preview of your result" className="mt-4 max-h-64 rounded-xl border" />
+  }
+  return null
+}
+
 /** Shown when the result is ready: download it, or send it straight into another tool */
 export function ResultPanel({
   tool,
@@ -362,6 +383,8 @@ export function ResultPanel({
       </m.div>
       <p className="mt-3 font-heading text-2xl font-bold">Your file is ready. Chai time!</p>
       <p className="mt-1 text-sm text-muted-foreground">{result.summary}</p>
+
+      <ResultPreview result={result} />
 
       <div className="mt-5 flex w-full max-w-md items-center gap-3 rounded-2xl border bg-background p-3 text-left">
         <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl", categoryStyles[tool.category].tile)}>

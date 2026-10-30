@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ffmpeg.wasm is copied here from node_modules (scripts/copy-ffmpeg.mjs)
+/public/ffmpeg
