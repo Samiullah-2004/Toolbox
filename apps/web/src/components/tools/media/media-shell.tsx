@@ -83,6 +83,19 @@ export function MediaWorkspace({
   }
 
   const file = files[0]
+
+  // The drop zone, progress and result panels fade out before the editor shows. Showing both at
+  // once for that moment would make the editor jump up by a whole panel's height, right as the
+  // person reaches for it.
+  const panelShown = state.status !== "idle" || !file
+  const [panelGone, setPanelGone] = useState(!panelShown)
+  const [lastPanelShown, setLastPanelShown] = useState(panelShown)
+  if (panelShown !== lastPanelShown) {
+    setLastPanelShown(panelShown)
+    if (panelShown) setPanelGone(false)
+  }
+  const showEditor = !panelShown && panelGone
+
   return (
     <div className="rounded-3xl border bg-card shadow-sm shadow-foreground/5">
       <DropOverlay
@@ -91,7 +104,7 @@ export function MediaWorkspace({
         description={tool.multiple ? "They'll be added to the end of the list." : "It replaces the current file."}
       />
 
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence mode="wait" initial={false} onExitComplete={() => setPanelGone(true)}>
         {state.status === "working" ? (
           <WorkingPanel key="working" label={working} progress={state.progress} onCancel={cancel} />
         ) : state.status === "done" ? (
@@ -105,9 +118,14 @@ export function MediaWorkspace({
 
       {/* Kept in place, only hidden, while a job runs. If the person cancels, every choice they made is still there. */}
       {file && (
-        <div ref={editorBox} hidden={state.status !== "idle"}>
+        <div ref={editorBox} hidden={!showEditor}>
           {/* keyed by file, so choosing a different file starts with fresh settings */}
-          <m.div key={tool.multiple ? "editor" : fileKey(file)} {...swapPreset}>
+          <m.div
+            key={tool.multiple ? "editor" : fileKey(file)}
+            initial={swapPreset.initial}
+            animate={showEditor ? swapPreset.animate : swapPreset.initial}
+            transition={swapPreset.transition}
+          >
             <Editor tool={tool} files={files} setFiles={setFiles} chooseFiles={chooseFiles} onRun={execute} />
           </m.div>
         </div>

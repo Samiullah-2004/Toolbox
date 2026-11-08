@@ -6,6 +6,13 @@ import { formatTime, parseTime } from "@/lib/media/commands"
 
 type Handle = "start" | "end"
 
+/**
+ * How wide a handle is, and room for it beside the timeline: the start handle sits just left of
+ * its time and the end handle just right, so both stay inside the box, focus ring (4px) included.
+ * Wider where people use a finger. The loading placeholder uses this too, so nothing jumps.
+ */
+export const timelineInset = "[--grip:1rem] pointer-coarse:[--grip:1.5rem] px-[calc(var(--grip)+0.25rem)]"
+
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high)
 
 /**
@@ -89,13 +96,15 @@ export function RangeSelector({
 
   const grip = (handle: Handle) =>
     cn(
-      "absolute inset-y-0 z-10 flex w-6 cursor-ew-resize sm:w-4 touch-none items-center justify-center bg-primary text-primary-foreground outline-none transition-[box-shadow,transform] focus-visible:ring-4 focus-visible:ring-ring/50",
+      "absolute inset-y-0 z-10 flex w-(--grip) cursor-ew-resize touch-none items-center justify-center bg-primary text-primary-foreground outline-none transition-[box-shadow,scale] focus-visible:ring-4 focus-visible:ring-ring/50",
+      // an invisible grab area around the handle, so a finger doesn't have to land on the thin bar itself
+      "before:absolute before:inset-y-0 before:-inset-x-2.5 before:content-['']",
       handle === "start" ? "-translate-x-full rounded-l-lg" : "rounded-r-lg",
       dragging === handle && "scale-y-105 shadow-lg"
     )
 
   return (
-    <div className={cn("select-none px-6 sm:px-4", className)}>
+    <div className={cn("select-none", timelineInset, className)}>
       <div
         className="relative h-20 overflow-visible rounded-xl bg-muted"
         onPointerDown={(event) => {

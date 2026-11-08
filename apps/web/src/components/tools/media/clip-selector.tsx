@@ -4,7 +4,7 @@ import { useRef, useState } from "react"
 import { Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { MediaPreview, Notice } from "@/components/tools/media/media-parts"
-import { RangeSelector, TimeField } from "@/components/tools/media/range-selector"
+import { RangeSelector, TimeField, timelineInset } from "@/components/tools/media/range-selector"
 import { formatTime } from "@/lib/media/commands"
 
 /**
@@ -70,7 +70,9 @@ export function ClipSelector({
       />
 
       {duration === null ? (
-        <div className="h-20 animate-pulse rounded-xl bg-muted" aria-busy="true" aria-label="Reading the length" />
+        <div className={timelineInset}>
+          <div className="h-20 animate-pulse rounded-xl bg-muted" aria-busy="true" aria-label="Reading the length" />
+        </div>
       ) : (
         <>
           <RangeSelector
