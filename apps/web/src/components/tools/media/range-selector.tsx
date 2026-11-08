@@ -89,13 +89,13 @@ export function RangeSelector({
 
   const grip = (handle: Handle) =>
     cn(
-      "absolute inset-y-0 z-10 flex w-4 cursor-ew-resize touch-none items-center justify-center bg-primary text-primary-foreground outline-none transition-[box-shadow,transform] focus-visible:ring-4 focus-visible:ring-ring/50",
+      "absolute inset-y-0 z-10 flex w-6 cursor-ew-resize sm:w-4 touch-none items-center justify-center bg-primary text-primary-foreground outline-none transition-[box-shadow,transform] focus-visible:ring-4 focus-visible:ring-ring/50",
       handle === "start" ? "-translate-x-full rounded-l-lg" : "rounded-r-lg",
       dragging === handle && "scale-y-105 shadow-lg"
     )
 
   return (
-    <div className={cn("select-none", className)}>
+    <div className={cn("select-none px-6 sm:px-4", className)}>
       <div
         className="relative h-20 overflow-visible rounded-xl bg-muted"
         onPointerDown={(event) => {
