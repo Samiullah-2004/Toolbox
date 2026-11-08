@@ -28,6 +28,7 @@ import {
   MediaPreview,
   Notice,
   SliderField,
+  whenLengthKnown,
 } from "@/components/tools/media/media-parts"
 import { MediaWorkspace, type EditorProps } from "@/components/tools/media/media-shell"
 import { ActionButton, fileKey, WorkspaceFooter } from "@/components/tools/workspace-parts"
@@ -240,11 +241,16 @@ function useClipLength(file: File) {
   useEffect(() => {
     const audio = new Audio()
     const url = URL.createObjectURL(file)
+    let stopWaiting = () => {}
     audio.preload = "metadata"
-    audio.onloadedmetadata = () => setSeconds(Number.isFinite(audio.duration) ? audio.duration : null)
+    audio.onloadedmetadata = () => {
+      stopWaiting = whenLengthKnown(audio, setSeconds)
+    }
     audio.src = url
     return () => {
       audio.onloadedmetadata = null
+      stopWaiting()
+      audio.removeAttribute("src")
       URL.revokeObjectURL(url)
     }
   }, [file])

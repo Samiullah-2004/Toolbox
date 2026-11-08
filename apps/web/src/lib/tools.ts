@@ -556,6 +556,7 @@ export const tools: Tool[] = [
     step: "We convert all your photos at once.",
     keywords: ["iphone", "heif", "jpeg", "convert", "photo"],
     week: 4,
+    live: true,
     popular: true,
   },
   {
@@ -573,6 +574,7 @@ export const tools: Tool[] = [
     step: "Choose a target size or a quality level.",
     keywords: ["reduce", "kb", "shrink", "smaller", "jpg", "png", "optimize"],
     week: 4,
+    live: true,
     popular: true,
   },
   {
@@ -590,6 +592,7 @@ export const tools: Tool[] = [
     step: "Type the size in pixels or pick a preset.",
     keywords: ["dimensions", "pixels", "scale", "width", "height"],
     week: 4,
+    live: true,
   },
   {
     slug: "remove-background",
@@ -605,6 +608,7 @@ export const tools: Tool[] = [
     step: "We find the subject on our own. Pick a new background if you like.",
     keywords: ["background remover", "transparent", "cut out", "png", "bg"],
     week: 4,
+    live: true,
   },
   {
     slug: "passport-photo",
@@ -620,6 +624,7 @@ export const tools: Tool[] = [
     step: "Choose the size: passport, CNIC or visa.",
     keywords: ["passport size", "cnic", "nadra", "id photo", "visa photo", "35x45"],
     week: 4,
+    live: true,
     popular: true,
   },
 
@@ -637,6 +642,7 @@ export const tools: Tool[] = [
     step: "Choose screen, voice or both, then press record.",
     keywords: ["record", "screen capture", "microphone", "voice recorder", "tutorial"],
     week: 4,
+    live: true,
   },
   {
     slug: "share-link",
@@ -668,6 +674,7 @@ export const tools: Tool[] = [
     step: "Pick the size and colour.",
     keywords: ["qr", "barcode", "link", "url"],
     week: 4,
+    live: true,
   },
 ]
 

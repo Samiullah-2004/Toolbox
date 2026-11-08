@@ -76,6 +76,27 @@ const liveWorkspaces: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "audio-effects": dynamic(() => import("@/components/tools/media/audio-editors").then((mod) => mod.AudioEffectsWorkspace), {
     loading: WorkspaceLoading,
   }),
+  "heic-to-jpg": dynamic(() => import("@/components/tools/image/image-editors").then((mod) => mod.HeicToJpgWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "compress-image": dynamic(() => import("@/components/tools/image/image-editors").then((mod) => mod.CompressImageWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "resize-image": dynamic(() => import("@/components/tools/image/image-editors").then((mod) => mod.ResizeImageWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "remove-background": dynamic(() => import("@/components/tools/image/image-editors").then((mod) => mod.RemoveBackgroundWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "passport-photo": dynamic(() => import("@/components/tools/image/passport-editor").then((mod) => mod.PassportPhotoWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "screen-recorder": dynamic(() => import("@/components/tools/utility/recorder-editor").then((mod) => mod.RecorderWorkspace), {
+    loading: WorkspaceLoading,
+  }),
+  "qr-code": dynamic(() => import("@/components/tools/utility/qr-editor").then((mod) => mod.QrCodeWorkspace), {
+    loading: WorkspaceLoading,
+  }),
 }
 
 export function ToolWorkspace({ slug }: { slug: string }) {

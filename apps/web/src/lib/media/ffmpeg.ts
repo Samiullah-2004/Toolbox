@@ -2,7 +2,7 @@
 //
 // Every job gets its own Web Worker with its own ffmpeg, which is closed when the job ends.
 // That keeps memory clean, and it is what makes Cancel a real stop. The ffmpeg files are
-// served by the site itself (see scripts/copy-ffmpeg.mjs), so nothing comes from a CDN.
+// served by the site itself (see scripts/copy-engines.mjs), so nothing comes from a CDN.
 //
 // Input files are mounted, not copied: ffmpeg reads them straight from the user's disk,
 // so even a 500 MB video does not need 500 MB of memory first.

@@ -40,5 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# ffmpeg.wasm is copied here from node_modules (scripts/copy-ffmpeg.mjs)
+# engines copied here from node_modules (scripts/copy-engines.mjs)
 /public/ffmpeg
+/public/ort

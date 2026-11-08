@@ -2,13 +2,10 @@ import Link from "next/link"
 import { ArrowRight, Workflow } from "lucide-react"
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal"
 import { ToolIcon } from "@/components/tools/tool-icon"
+import { StartChainButton } from "@/components/home/start-chain-button"
+import { chainReady, chains } from "@/lib/jugaad"
 import { getTool } from "@/lib/tools"
 
-const chains = [
-  { title: "Lecture video to voice note", steps: ["video-to-mp3", "trim-audio", "whatsapp-voice-note"] },
-  { title: "Phone photos to one small PDF", steps: ["document-scanner", "merge-pdf", "compress-pdf"] },
-  { title: "iPhone selfie to passport photo", steps: ["heic-to-jpg", "remove-background", "passport-photo"] },
-]
 
 export function JugaadSection() {
   return (
@@ -23,20 +20,27 @@ export function JugaadSection() {
             <div>
               <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-[oklch(0.86_0.15_88)]">
                 <Workflow className="size-4" aria-hidden="true" />
-                Jugaad Mode &middot; coming soon
+                Jugaad Mode
               </p>
               <h2 className="mt-4 text-3xl font-bold sm:text-4xl">Chain tools together. Upload once.</h2>
               <p className="mt-4 text-base leading-relaxed text-white/75 sm:text-lg">
                 The result of one tool goes straight into the next one. No downloading and uploading the same
-                file again and again. One button, the whole job done.
+                file again and again. Press Start, and Toolbox walks you through each step.
               </p>
             </div>
 
             <Stagger as="ul" gap={120} className="space-y-3">
               {chains.map((chain) => (
-                <StaggerItem as="li" key={chain.title}>
+                <StaggerItem as="li" key={chain.id}>
                   <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm transition-colors duration-300 hover:border-white/25 hover:bg-white/[0.1] sm:p-5">
-                  <p className="text-sm font-semibold text-white/90">{chain.title}</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-white/90">{chain.title}</p>
+                    {chainReady(chain) ? (
+                      <StartChainButton chain={chain} />
+                    ) : (
+                      <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/70">Coming soon</span>
+                    )}
+                  </div>
                   <ol className="mt-3 flex flex-wrap items-center gap-1.5">
                     {chain.steps.map((slug, i) => {
                       const tool = getTool(slug)!

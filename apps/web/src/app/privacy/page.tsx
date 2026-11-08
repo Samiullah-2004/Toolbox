@@ -69,6 +69,15 @@ export default function PrivacyPage() {
             your name, email or password, so there is no personal data for us to store.
           </p>
           <p className="mt-3">
+            <span className="font-semibold text-foreground">The cut-out model.</span> Remove Background and Passport
+            &amp; CNIC Photo use a small AI model. The first time, your browser downloads it from Hugging Face (about
+            42 MB) and keeps it. Only the model travels; your photo stays on your device.
+          </p>
+          <p className="mt-3">
+            <span className="font-semibold text-foreground">Hidden photo details.</span> When the image tools save a
+            picture, they leave out its hidden details, like the camera and the place it was taken.
+          </p>
+          <p className="mt-3">
             Questions? Read the{" "}
             <Link href="/about#faq" className="font-medium text-primary underline-offset-4 hover:underline">
               FAQ

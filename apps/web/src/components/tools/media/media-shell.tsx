@@ -1,21 +1,10 @@
 "use client"
 
-import { useRef, useState } from "react"
-import { AnimatePresence, m } from "motion/react"
-import {
-  fileKey,
-  FileDropzone,
-  ResultPanel,
-  useToolFiles,
-  useToolJob,
-  WorkingPanel,
-} from "@/components/tools/workspace-parts"
-import { DropOverlay } from "@/components/upload/drop-overlay"
+import { EditorWorkspace, type EditorProps as BaseEditorProps, type Job } from "@/components/tools/editor-workspace"
 import { runMedia, type MediaOutput } from "@/lib/media/ffmpeg"
-import { swapPreset } from "@/lib/motion"
 import type { Tool } from "@/lib/tools"
 
-/** Everything an editor decides, handed to the shell to run */
+/** Everything an audio or video editor decides, handed to the shell to run with ffmpeg */
 export interface MediaPlan {
   inputs: File[]
   /** Builds ffmpeg's arguments: where each input can be read, and where results go */
@@ -30,44 +19,12 @@ export interface MediaPlan {
   zipEntryName?: (outputName: string, index: number) => string
 }
 
-export interface EditorProps {
-  tool: Tool
-  files: File[]
-  setFiles: React.Dispatch<React.SetStateAction<File[]>>
-  /** Opens the file picker: replaces the file, or adds more for tools that take several */
-  chooseFiles: () => void
-  onRun: (plan: MediaPlan) => void
-}
+export type EditorProps = BaseEditorProps<MediaPlan>
 
-/**
- * The shared frame of every audio and video tool: drop zone, then the tool's own editor,
- * then progress with a Cancel button, then the result. Each tool only supplies its editor.
- */
-export function MediaWorkspace({
-  tool,
-  Editor,
-  next = [],
-}: {
-  tool: Tool
-  Editor: React.ComponentType<EditorProps>
-  /** Tools that can take the result straight on (Jugaad Mode) */
-  next?: string[]
-}) {
-  const { files, setFiles, dragging, fileInput, chooseFiles } = useToolFiles(tool)
-  const { state, run, cancel, reset } = useToolJob()
-  const [working, setWorking] = useState("Working on your file")
-  const editorBox = useRef<HTMLDivElement>(null)
-
-  const startOver = () => {
-    reset()
-    setFiles([])
-  }
-
-  const execute = (plan: MediaPlan) => {
-    // a hidden player would keep playing out loud
-    editorBox.current?.querySelectorAll("video, audio").forEach((player) => (player as HTMLMediaElement).pause())
-    setWorking(plan.working)
-    run(async (signal, onProgress) => {
+function mediaJob(plan: MediaPlan): Job {
+  return {
+    working: plan.working,
+    run: async (signal, onProgress) => {
       const outputs = await runMedia({ inputs: plan.inputs, args: plan.args, signal, onProgress })
       const summary = plan.summary(outputs)
       if (plan.zipEntryName) {
@@ -79,58 +36,19 @@ export function MediaWorkspace({
         return { bytes, fileName: plan.fileName, type: "application/zip", summary }
       }
       return { bytes: outputs[0].bytes, fileName: plan.fileName, type: plan.type, summary }
-    })
+    },
   }
+}
 
-  const file = files[0]
-
-  // The drop zone, progress and result panels fade out before the editor shows. Showing both at
-  // once for that moment would make the editor jump up by a whole panel's height, right as the
-  // person reaches for it.
-  const panelShown = state.status !== "idle" || !file
-  const [panelGone, setPanelGone] = useState(!panelShown)
-  const [lastPanelShown, setLastPanelShown] = useState(panelShown)
-  if (panelShown !== lastPanelShown) {
-    setLastPanelShown(panelShown)
-    if (panelShown) setPanelGone(false)
-  }
-  const showEditor = !panelShown && panelGone
-
-  return (
-    <div className="rounded-3xl border bg-card shadow-sm shadow-foreground/5">
-      <DropOverlay
-        active={dragging && state.status === "idle"}
-        title={tool.multiple ? "Drop to add more" : "Drop a file to use it"}
-        description={tool.multiple ? "They'll be added to the end of the list." : "It replaces the current file."}
-      />
-
-      <AnimatePresence mode="wait" initial={false} onExitComplete={() => setPanelGone(true)}>
-        {state.status === "working" ? (
-          <WorkingPanel key="working" label={working} progress={state.progress} onCancel={cancel} />
-        ) : state.status === "done" ? (
-          <ResultPanel key="done" tool={tool} result={state.result} nextTools={state.result.type === "application/zip" ? [] : next} onStartOver={startOver} />
-        ) : !file ? (
-          <m.div key="empty" {...swapPreset} className="p-4 sm:p-6">
-            <FileDropzone tool={tool} onChoose={chooseFiles} />
-          </m.div>
-        ) : null}
-      </AnimatePresence>
-
-      {/* Kept in place, only hidden, while a job runs. If the person cancels, every choice they made is still there. */}
-      {file && (
-        <div ref={editorBox} hidden={!showEditor}>
-          {/* keyed by file, so choosing a different file starts with fresh settings */}
-          <m.div
-            key={tool.multiple ? "editor" : fileKey(file)}
-            initial={swapPreset.initial}
-            animate={showEditor ? swapPreset.animate : swapPreset.initial}
-            transition={swapPreset.transition}
-          >
-            <Editor tool={tool} files={files} setFiles={setFiles} chooseFiles={chooseFiles} onRun={execute} />
-          </m.div>
-        </div>
-      )}
-      {fileInput}
-    </div>
-  )
+/** The frame of every audio and video tool (see EditorWorkspace); each tool supplies its editor */
+export function MediaWorkspace({
+  tool,
+  Editor,
+  next,
+}: {
+  tool: Tool
+  Editor: React.ComponentType<EditorProps>
+  next?: string[]
+}) {
+  return <EditorWorkspace tool={tool} Editor={Editor} toJob={mediaJob} next={next} />
 }

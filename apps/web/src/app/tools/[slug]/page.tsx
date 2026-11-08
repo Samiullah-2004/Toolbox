@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { LiveMascot } from "@/components/brand/live-mascot"
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal"
+import { ChainBar } from "@/components/tools/chain-bar"
 import { LiveSteps } from "@/components/tools/live-steps"
 import { ToolSessionProvider } from "@/components/tools/tool-session"
 import { PrivacyBadge } from "@/components/tools/privacy-badge"
@@ -139,6 +140,7 @@ async function ToolPageContent({ params }: { params: PageProps<"/tools/[slug]">[
               </div>
             </div>
           )}
+          <ChainBar slug={tool.slug} />
           <ToolWorkspace slug={tool.slug} />
         </div>
 

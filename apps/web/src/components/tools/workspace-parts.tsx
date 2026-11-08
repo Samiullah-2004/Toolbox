@@ -3,10 +3,10 @@
 // Building blocks shared by every tool workspace: getting files in, showing progress,
 // and handing the result back to the user.
 
-import { useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { m } from "motion/react"
-import { ArrowRight, CloudUpload, Download, FolderOpen, Lock, RotateCcw, X } from "lucide-react"
+import { ArrowRight, CloudUpload, Download, FolderOpen, Lock, RotateCcw, Workflow, X } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -15,12 +15,14 @@ import { Mascot } from "@/components/brand/mascot"
 import { DashedOutline } from "@/components/motion/dashed-outline"
 import { ToolIcon } from "@/components/tools/tool-icon"
 import { useToolSession } from "@/components/tools/tool-session"
+import { useBringIntoView } from "@/hooks/use-bring-into-view"
 import { useObjectUrlRef } from "@/hooks/use-object-url-ref"
 import { useWindowFileDrop } from "@/hooks/use-window-file-drop"
 import { categoryStyles } from "@/lib/category-styles"
 import { downloadBytes } from "@/lib/download"
 import { handOffFiles, receiveHandoffs } from "@/lib/file-handoff"
 import { formatBytes } from "@/lib/format"
+import { leaveChain, useChainStep } from "@/lib/jugaad-store"
 import { swapPreset } from "@/lib/motion"
 import {
   acceptAttribute,
@@ -298,8 +300,10 @@ export function useToolJob() {
 
 /** Shown while a job runs: Mistri at work, progress, and a way to stop */
 export function WorkingPanel({ label, progress, onCancel }: { label: string; progress: number | null; onCancel: () => void }) {
+  const bringIntoView = useBringIntoView<HTMLDivElement>()
   return (
     <m.div
+      ref={bringIntoView}
       key="working"
       {...swapPreset}
       role="status"
@@ -365,15 +369,32 @@ export function ResultPanel({
   onStartOver: () => void
 }) {
   const router = useRouter()
+  const bringIntoView = useBringIntoView<HTMLDivElement>()
   const type = result.type ?? "application/pdf"
+  const step = useChainStep(tool.slug)
+  // the last step of a chain ends Jugaad Mode; remember the chain to say well done
+  const [finishedChain] = useState(() => (step?.last ? step.chain : null))
+  useEffect(() => {
+    if (finishedChain) leaveChain()
+  }, [finishedChain])
+  const file = useMemo(() => new File([result.bytes as BlobPart], result.fileName, { type }), [result, type])
+  // only offer tools that work and that can open this result (a ZIP or the wrong kind of file would be turned away)
+  const canTake = (slug: string | null | undefined): slug is string => {
+    const next = slug ? getTool(slug) : undefined
+    return !!next?.live && acceptsFile(next, file)
+  }
+  const chainNext = canTake(step?.next) ? getTool(step.next)! : null
+  // the chain goes on, but this result can't: say why, instead of a button that leads nowhere
+  const chainStuck = step?.next && !chainNext && getTool(step.next)?.live ? getTool(step.next)! : null
+  const others = nextTools.filter((slug) => slug !== chainNext?.slug && canTake(slug))
 
   const sendTo = (slug: string) => {
-    handOffFiles(slug, [new File([result.bytes as BlobPart], result.fileName, { type })])
+    handOffFiles(slug, [file])
     router.push(`/tools/${slug}`)
   }
 
   return (
-    <m.div key="done" {...swapPreset} className="flex flex-col items-center px-4 py-8 text-center sm:px-6">
+    <m.div ref={bringIntoView} key="done" {...swapPreset} className="flex flex-col items-center px-4 py-8 text-center sm:px-6">
       <m.div
         initial={{ scale: 0.6, rotate: -8 }}
         animate={{ scale: 1, rotate: 0 }}
@@ -381,8 +402,16 @@ export function ResultPanel({
       >
         <LiveMascot className="w-32" />
       </m.div>
-      <p className="mt-3 font-heading text-2xl font-bold">Your file is ready. Chai time!</p>
+      <p className="mt-3 font-heading text-2xl font-bold">
+        {finishedChain ? "All done. Jugaad complete!" : "Your file is ready. Chai time!"}
+      </p>
       <p className="mt-1 text-sm text-muted-foreground">{result.summary}</p>
+      {finishedChain && (
+        <p className="mt-2 flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
+          <Workflow className="size-3.5" aria-hidden="true" />
+          {finishedChain.title}: all {finishedChain.steps.length} steps done, with one upload.
+        </p>
+      )}
 
       <ResultPreview result={result} />
 
@@ -396,8 +425,43 @@ export function ResultPanel({
         </div>
       </div>
 
+      {chainNext && (
+        <m.button
+          type="button"
+          onClick={() => sendTo(chainNext.slug)}
+          initial={{ scale: 0.92, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 420, damping: 18, delay: 0.15 }}
+          className="group mt-5 flex w-full max-w-md items-center gap-3 rounded-2xl bg-primary p-3 text-left text-primary-foreground shadow-lg shadow-primary/25 outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-4 focus-visible:ring-ring/40 active:scale-[0.98]"
+        >
+          <ToolIcon icon={chainNext.icon} category={chainNext.category} size="sm" className="bg-white/90" />
+          <span className="flex-1">
+            <span className="block text-xs opacity-80">
+              Next step ({step!.index + 2} of {step!.chain.steps.length})
+            </span>
+            <span className="block font-semibold">{chainNext.name}</span>
+          </span>
+          <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
+        </m.button>
+      )}
+      {chainStuck && (
+        <p className="mt-5 flex w-full max-w-md items-start gap-2 rounded-xl bg-warning/15 px-3 py-2.5 text-left text-sm">
+          <Workflow className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+          <span>
+            The next step, {chainStuck.name}, can&apos;t open this{" "}
+            {type === "application/zip" ? "ZIP of several files. Run this step with one file to keep going," : "kind of file,"} or
+            download the result here.
+          </span>
+        </p>
+      )}
+
       <div className="mt-5 flex w-full max-w-md flex-col gap-2 sm:flex-row">
-        <Button size="lg" className="group flex-1" onClick={() => downloadBytes(result.bytes, result.fileName, type)}>
+        <Button
+          size="lg"
+          variant={chainNext ? "outline" : "default"}
+          className="group flex-1"
+          onClick={() => downloadBytes(result.bytes, result.fileName, type)}
+        >
           <Download className="transition-transform group-hover:translate-y-0.5" />
           Download
         </Button>
@@ -407,12 +471,12 @@ export function ResultPanel({
         </Button>
       </div>
 
-      {nextTools.length > 0 && (
+      {others.length > 0 && (
         <div className="mt-8 w-full max-w-md border-t pt-5">
-          <p className="text-sm font-semibold">Keep going with this file</p>
+          <p className="text-sm font-semibold">{chainNext ? "Or take it somewhere else" : "Keep going with this file"}</p>
           <p className="text-xs text-muted-foreground">Jugaad Mode: no need to download and upload it again.</p>
           <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {nextTools.map((slug) => {
+            {others.map((slug) => {
               const next = getTool(slug)!
               return (
                 <li key={slug}>
