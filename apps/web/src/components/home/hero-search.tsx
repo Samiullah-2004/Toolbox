@@ -101,33 +101,33 @@ export function HeroSearch() {
         )}
       </div>
 
-      {open && (
-        <CommandPrimitive.List
-          // Keep focus in the input so a click on a result is not lost to blur
-          onMouseDown={(e) => e.preventDefault()}
-          className="absolute inset-x-0 top-full z-30 mt-2 max-h-[min(24rem,55vh)] scroll-py-1.5 overflow-y-auto rounded-2xl border bg-popover p-1.5 text-popover-foreground shadow-2xl shadow-foreground/10 duration-150 animate-in fade-in-0 slide-in-from-top-1"
-        >
-          <CommandEmpty className="px-4 py-8 text-center text-sm text-muted-foreground">
-            No tool found for &ldquo;{query}&rdquo;. Try &ldquo;pdf&rdquo;, &ldquo;mp3&rdquo; or &ldquo;photo&rdquo;.
-          </CommandEmpty>
-          {ordered.map((tool) => (
-            <CommandItem
-              key={tool.slug}
-              value={tool.name}
-              keywords={searchKeywords(tool)}
-              onSelect={() => router.push(`/tools/${tool.slug}`)}
-              className="gap-3 rounded-xl! px-2.5 py-2"
-            >
-              <ToolIcon icon={tool.icon} category={tool.category} size="sm" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{tool.name}</span>
-                <span className="block truncate text-xs text-muted-foreground">{tool.description}</span>
-              </span>
-              <PrivacyDot runsOn={tool.runsOn} />
-            </CommandItem>
-          ))}
-        </CommandPrimitive.List>
-      )}
+      {/* Always rendered, only hidden while closed: the search box points screen readers at this list */}
+      <CommandPrimitive.List
+        hidden={!open}
+        // Keep focus in the input so a click on a result is not lost to blur
+        onMouseDown={(e) => e.preventDefault()}
+        className="absolute inset-x-0 top-full z-30 mt-2 max-h-[min(24rem,55vh)] scroll-py-1.5 overflow-y-auto rounded-2xl border bg-popover p-1.5 text-popover-foreground shadow-2xl shadow-foreground/10 duration-150 animate-in fade-in-0 slide-in-from-top-1"
+      >
+        <CommandEmpty className="px-4 py-8 text-center text-sm text-muted-foreground">
+          No tool found for &ldquo;{query}&rdquo;. Try &ldquo;pdf&rdquo;, &ldquo;mp3&rdquo; or &ldquo;photo&rdquo;.
+        </CommandEmpty>
+        {ordered.map((tool) => (
+          <CommandItem
+            key={tool.slug}
+            value={tool.name}
+            keywords={searchKeywords(tool)}
+            onSelect={() => router.push(`/tools/${tool.slug}`)}
+            className="gap-3 rounded-xl! px-2.5 py-2"
+          >
+            <ToolIcon icon={tool.icon} category={tool.category} size="sm" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-medium">{tool.name}</span>
+              <span className="block truncate text-xs text-muted-foreground">{tool.description}</span>
+            </span>
+            <PrivacyDot runsOn={tool.runsOn} />
+          </CommandItem>
+        ))}
+      </CommandPrimitive.List>
     </CommandPrimitive>
   )
 }

@@ -405,7 +405,7 @@ export const tools: Tool[] = [
     input: "files",
     kinds: ["audio"],
     actionLabel: "Save audio",
-    step: "Drag over the wave to select what to keep or cut.",
+    step: "Drag the handles over the sound wave to choose what to keep or cut.",
     keywords: ["cut", "trim", "crop audio", "ringtone", "waveform", "silence"],
     week: 3,
     live: true,
@@ -571,7 +571,7 @@ export const tools: Tool[] = [
     kinds: ["image"],
     multiple: true,
     actionLabel: "Compress images",
-    step: "Choose a target size or a quality level.",
+    step: "Choose a size limit, like 100 KB. We find the best quality that fits.",
     keywords: ["reduce", "kb", "shrink", "smaller", "jpg", "png", "optimize"],
     week: 4,
     live: true,
@@ -621,7 +621,7 @@ export const tools: Tool[] = [
     input: "files",
     kinds: ["image"],
     actionLabel: "Make photo",
-    step: "Choose the size: passport, CNIC or visa.",
+    step: "Choose the size, then drag your photo so your face fits the guides.",
     keywords: ["passport size", "cnic", "nadra", "id photo", "visa photo", "35x45"],
     week: 4,
     live: true,
@@ -819,17 +819,14 @@ export function hasPageLimit(tool: Tool) {
 }
 
 /**
- * Tools that take a given file, popular ones first, then tools that take any file
- * (like Temporary Share Link). Used by "drop a file and we suggest tools".
+ * Tools that take a given file: ones that already work first (popular ones first among them),
+ * then tools that take any file (like Temporary Share Link). Used by "drop a file and we suggest tools".
  */
 export function suggestToolsForFile(file: File) {
   const kind = detectKind(file)
   const fileTools = tools.filter((t) => t.input === "files")
-  const specific = kind
-    ? fileTools
-        .filter((t) => t.kinds?.includes(kind))
-        .sort((a, b) => Number(!!b.popular) - Number(!!a.popular))
-    : []
+  const rank = (t: Tool) => (t.live ? 2 : 0) + (t.popular ? 1 : 0)
+  const specific = kind ? fileTools.filter((t) => t.kinds?.includes(kind)).sort((a, b) => rank(b) - rank(a)) : []
   const anyFile = fileTools.filter((t) => t.kinds?.includes("any"))
   return [...specific, ...anyFile]
 }

@@ -97,6 +97,8 @@ async function CategoryContent({ params }: { params: PageProps<"/category/[id]">
       </section>
 
       <div className="container-page py-8 sm:py-10">
+        {/* the tool cards use h3, so screen readers get a level in between */}
+        <h2 className="sr-only">{category.name} tools</h2>
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {list.map((tool, i) => (
             <li key={tool.slug} className="rise" style={riseDelay(200 + i * 60)}>

@@ -101,7 +101,7 @@ export function ToolExplorer() {
                     <span className={cn("size-2 rounded-full", categoryStyles[c.id].bar)} aria-hidden="true" />
                   )}
                   {c.name}
-                  <span className={cn("text-xs tabular-nums", active ? "opacity-70" : "opacity-60")}>{count}</span>
+                  <span className="text-xs tabular-nums">{count}</span>
                 </button>
               )
             })}
