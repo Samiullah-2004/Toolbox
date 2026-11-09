@@ -6,7 +6,7 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { m } from "motion/react"
-import { ArrowRight, CloudUpload, Download, FolderOpen, Lock, RotateCcw, Workflow, X } from "lucide-react"
+import { ArrowRight, Check, CloudUpload, Copy, Download, FolderOpen, Lock, RotateCcw, Workflow, X } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -181,14 +181,16 @@ export function WorkspaceFooter({ tool, children }: { tool: Tool; children: Reac
   return (
     <div className="flex flex-col-reverse gap-3 rounded-b-3xl border-t bg-muted/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
-        {tool.runsOn === "browser" ? (
+        {tool.runsOn === "browser" || !tool.live ? (
           <Lock className="size-3.5 shrink-0 text-success" aria-hidden="true" />
         ) : (
           <CloudUpload className="size-3.5 shrink-0 text-teal" aria-hidden="true" />
         )}
         {tool.runsOn === "browser"
           ? "Runs in your browser. Your files never leave this device."
-          : "Uploaded securely and deleted after 1 hour."}
+          : tool.live
+            ? "Uploaded securely and deleted after 1 hour."
+            : "Preview: nothing is uploaded yet. The finished tool deletes files after 1 hour."}
       </p>
       <div className="flex gap-2">{children}</div>
     </div>
@@ -229,7 +231,18 @@ export interface ToolResult {
   type?: string
   /** One line about what happened, e.g. "3 files, 12 pages" */
   summary: string
+  /** What to show on screen, for results the browser can't preview by itself (text, tables, subtitles) */
+  view?: ResultView
+  /** Set for tools still being built: the result is an example, not the person's own file */
+  sample?: { week: number }
 }
+
+export type ResultView =
+  | { kind: "text"; text: string }
+  | { kind: "table"; rows: string[][] }
+  | { kind: "cues"; cues: { start: string; end: string; text: string }[] }
+  | { kind: "facts"; title: string; items: { label: string; value: string }[] }
+  | { kind: "link"; url: string; note: string }
 
 type JobState =
   | { status: "idle" }
@@ -336,12 +349,117 @@ export function WorkingPanel({ label, progress, onCancel }: { label: string; pro
 }
 
 /** Lets people play or look at a video, sound or picture before downloading it */
+/** Copies text, and says so for a moment */
+function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={async () => {
+        await navigator.clipboard.writeText(text)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1600)
+      }}
+    >
+      {copied ? <Check /> : <Copy />}
+      {copied ? "Copied" : label}
+    </Button>
+  )
+}
+
+/** Text, tables, subtitles and the like, shown on the page before downloading */
+function ResultView({ view }: { view: ResultView }) {
+  const box = "mt-4 w-full max-w-md rounded-2xl border bg-background text-left"
+  switch (view.kind) {
+    case "text":
+      return (
+        <div className={box}>
+          <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+            <p className="text-xs font-medium text-muted-foreground">Text</p>
+            <CopyButton text={view.text} label="Copy text" />
+          </div>
+          <pre dir="auto" className="max-h-60 overflow-auto px-3 py-2.5 font-sans text-sm leading-relaxed whitespace-pre-wrap">
+            {view.text}
+          </pre>
+        </div>
+      )
+    case "table":
+      return (
+        <div className={cn(box, "max-h-60 overflow-auto")}>
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-muted">
+              <tr>
+                {view.rows[0].map((cell, i) => (
+                  <th key={i} scope="col" className="px-3 py-2 text-left font-semibold whitespace-nowrap">
+                    {cell}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {view.rows.slice(1).map((row, r) => (
+                <tr key={r} className="border-t">
+                  {row.map((cell, c) => (
+                    <td key={c} className="px-3 py-1.5 whitespace-nowrap tabular-nums">
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    case "cues":
+      return (
+        <ol className={cn(box, "max-h-60 divide-y overflow-auto")}>
+          {view.cues.map((cue, i) => (
+            <li key={i} className="flex gap-3 px-3 py-2 text-sm">
+              <span className="shrink-0 pt-0.5 font-mono text-xs text-muted-foreground tabular-nums">
+                {cue.start}
+                <br />
+                {cue.end}
+              </span>
+              <span dir="auto">{cue.text}</span>
+            </li>
+          ))}
+        </ol>
+      )
+    case "facts":
+      return (
+        <div className={cn(box, "p-4")}>
+          <p className="font-heading text-lg font-bold">{view.title}</p>
+          <dl className="mt-2 space-y-1.5 text-sm">
+            {view.items.map((item) => (
+              <div key={item.label} className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">{item.label}</dt>
+                <dd className="text-right font-medium">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )
+    case "link":
+      return (
+        <div className={cn(box, "p-3")}>
+          <div className="flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-lg bg-muted px-2.5 py-2 text-sm">{view.url}</code>
+            <CopyButton text={view.url} label="Copy link" />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">{view.note}</p>
+        </div>
+      )
+  }
+}
+
 function ResultPreview({ result }: { result: ToolResult }) {
   const type = result.type ?? ""
   const blob = useMemo(() => new Blob([result.bytes as BlobPart], { type }), [result, type])
   const mediaRef = useObjectUrlRef<HTMLMediaElement>(blob)
   const imageRef = useObjectUrlRef<HTMLImageElement>(blob)
 
+  if (result.view) return <ResultView view={result.view} />
   if (type.startsWith("video/")) {
     return <video ref={mediaRef} controls playsInline preload="metadata" className="mt-4 max-h-64 w-full max-w-md rounded-xl bg-black" />
   }
@@ -383,10 +501,10 @@ export function ResultPanel({
     const next = slug ? getTool(slug) : undefined
     return !!next?.live && acceptsFile(next, file)
   }
-  const chainNext = canTake(step?.next) ? getTool(step.next)! : null
+  const chainNext = !result.sample && canTake(step?.next) ? getTool(step.next)! : null
   // the chain goes on, but this result can't: say why, instead of a button that leads nowhere
-  const chainStuck = step?.next && !chainNext && getTool(step.next)?.live ? getTool(step.next)! : null
-  const others = nextTools.filter((slug) => slug !== chainNext?.slug && canTake(slug))
+  const chainStuck = !result.sample && step?.next && !chainNext && getTool(step.next)?.live ? getTool(step.next)! : null
+  const others = result.sample ? [] : nextTools.filter((slug) => slug !== chainNext?.slug && canTake(slug))
 
   const sendTo = (slug: string) => {
     handOffFiles(slug, [file])
@@ -403,8 +521,13 @@ export function ResultPanel({
         <LiveMascot className="w-32" />
       </m.div>
       <p className="mt-3 font-heading text-2xl font-bold">
-        {finishedChain ? "All done. Jugaad complete!" : "Your file is ready. Chai time!"}
+        {finishedChain ? "All done. Jugaad complete!" : result.sample ? "Here is what you will get" : "Your file is ready. Chai time!"}
       </p>
+      {result.sample && (
+        <p className="mt-2 rounded-full bg-warning/15 px-3 py-1 text-xs font-medium">
+          Sample result &middot; the real tool arrives in Week {result.sample.week}
+        </p>
+      )}
       <p className="mt-1 text-sm text-muted-foreground">{result.summary}</p>
       {finishedChain && (
         <p className="mt-2 flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
@@ -463,7 +586,7 @@ export function ResultPanel({
           onClick={() => downloadBytes(result.bytes, result.fileName, type)}
         >
           <Download className="transition-transform group-hover:translate-y-0.5" />
-          Download
+          {result.sample ? "Download sample" : "Download"}
         </Button>
         <Button size="lg" variant="outline" onClick={onStartOver}>
           <RotateCcw />

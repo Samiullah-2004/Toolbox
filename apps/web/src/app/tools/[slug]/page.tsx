@@ -132,10 +132,10 @@ async function ToolPageContent({ params }: { params: PageProps<"/tools/[slug]">[
             <div className="flex items-center gap-3 rounded-2xl border border-warning/30 bg-warning/10 p-3 pr-4 sm:gap-4">
               <LiveMascot mood="working" className="w-16 shrink-0 sm:w-20" label="Mistri at work" />
               <div>
-                <p className="font-semibold">Mistri is still building this tool</p>
+                <p className="font-semibold">Preview: Mistri is still building this tool</p>
                 <p className="text-sm text-muted-foreground">
-                  It is planned for Week {tool.week}. You can already try the upload area, but nothing is processed
-                  yet.
+                  The real work arrives in Week {tool.week}. You can try every step now and get a sample result.
+                  Nothing is uploaded.
                 </p>
               </div>
             </div>

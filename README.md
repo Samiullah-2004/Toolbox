@@ -18,7 +18,7 @@ Built in 8 weekly steps. Each tool page shows the week it ships in.
 | 1 | Website, design system, tool pages, search, drag and drop | Done |
 | 2 | PDF tools: merge, split, reorder and rotate, sign (Rust + WebAssembly) | Done |
 | 3 | Audio and video tools (ffmpeg.wasm) | Done |
-| 4 | Image tools, QR codes, screen and voice recorder, Jugaad Mode | Done |
+| 4 | Image tools, QR codes, screen and voice recorder, Jugaad Mode, preview screens for server tools | Done |
 | 5 | Database, temporary file storage, daily limits (Supabase, Upstash) | Next |
 | 6 | Python server: OCR, PDF to Word, tables | |
 | 7 | Python server: scanner, redaction, speech to text | |
@@ -67,6 +67,13 @@ Remove Background and Passport & CNIC Photo find the subject with the
 model (about 42 MB) downloads once from Hugging Face and the browser keeps it. Photos are never uploaded.
 RMBG-1.4 is free for non-commercial use, which suits this university project; a commercial version of
 Toolbox would need a licence from BRIA or a different model.
+
+## Preview tools
+
+The 13 tools that need a server (Weeks 5-7), like OCR, PDF to Word and Speech to Text, already have
+their real screens: choosing a file, the settings, progress with Cancel, and the result. Until their
+server is built, they finish with a clearly marked sample (a real Word, Excel, PDF, SRT or audio
+file) instead of the person's own file, and nothing is uploaded.
 
 ## Jugaad Mode
 
